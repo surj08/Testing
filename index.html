@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Golf Group Organizer</title>
+    <title>Golf Group Organizer V2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom styles */
@@ -64,6 +64,65 @@
          .player-item:hover {
              background-color: #f3f4f6; /* Light gray on hover */
         }
+        /* Search results styling */
+        #search-results {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #d1d5db;
+            border-top: none; /* Attach visually to search bar */
+            border-radius: 0 0 0.375rem 0.375rem; /* Rounded bottom corners */
+            background-color: white;
+            position: absolute; /* Position below search bar */
+            width: calc(100% - 2rem); /* Match width of container minus padding */
+            max-width: 400px; /* Optional: constrain width */
+            z-index: 10; /* Ensure it's above other elements */
+        }
+        .search-result-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+        }
+        .search-result-item:hover {
+            background-color: #eff6ff; /* Light blue on hover */
+        }
+        /* Skill visualization bars */
+        #skill-visualization-chart {
+            display: flex;
+            align-items: flex-end; /* Align bars at the bottom */
+            gap: 4px; /* Space between bars */
+            height: 60px; /* Max height for bars */
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            margin-top: 10px;
+        }
+        .skill-bar {
+            background-color: #60a5fa; /* Blue bars */
+            width: 15px; /* Width of each bar */
+            border-radius: 3px 3px 0 0; /* Slightly rounded top */
+            position: relative; /* For tooltip */
+            cursor: default; /* Indicate it's not clickable */
+        }
+         .skill-bar .tooltip {
+            visibility: hidden;
+            width: max-content;
+            background-color: #374151; /* Dark gray */
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 105%; /* Position above the bar */
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.75rem; /* Smaller text */
+        }
+
+        .skill-bar:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -71,12 +130,12 @@
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
 
-    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
-        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Golf Group Organizer</h1>
+    <div class="max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Golf Group Organizer V2</h1>
 
         <div class="border-b border-gray-200 mb-6">
-            <nav id="tabs" class="-mb-px flex space-x-4" aria-label="Tabs">
-                <button id="add-outing-btn" class="whitespace-nowrap py-3 px-3 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 rounded-t-md">
+            <nav id="tabs" class="-mb-px flex space-x-4 overflow-x-auto pb-1" aria-label="Tabs">
+                <button id="add-outing-btn" class="flex-shrink-0 whitespace-nowrap py-3 px-3 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 rounded-t-md">
                     + Add Outing
                 </button>
             </nav>
@@ -84,55 +143,78 @@
 
         <div id="tab-content">
 
-            <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <h2 class="text-lg font-semibold text-gray-700 mb-3">Manage Players</h2>
-                <div class="flex flex-col md:flex-row md:items-end gap-4">
-                    <div class="flex-grow">
-                        <label for="player-name" class="block text-sm font-medium text-gray-700 mb-1">Player Name</label>
-                        <input type="text" id="player-name" placeholder="Enter player name" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <div class="md:col-span-1 space-y-6">
+                    <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-3">Find / Add Players</h2>
+                        <div class="relative">
+                            <label for="player-search" class="block text-sm font-medium text-gray-700 mb-1">Search Players</label>
+                            <input type="text" id="player-search" placeholder="Start typing player name..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <div id="search-results" class="absolute left-0 right-0 mt-1 hidden">
+                                </div>
+                        </div>
+                        <div id="add-new-player-section" class="mt-4 pt-4 border-t border-gray-200 hidden">
+                            <h3 class="text-md font-semibold text-gray-600 mb-2">Add New Player</h3>
+                            <p class="text-sm mb-2">Player "<strong id="new-player-name-display"></strong>" not found.</p>
+                            <div class="mb-3">
+                                <label for="new-player-skill" class="block text-sm font-medium text-gray-700 mb-1">Set Skill Level (<span id="new-skill-value">5</span>)</label>
+                                <input type="range" id="new-player-skill" min="1" max="10" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <button id="add-new-player-btn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                                Add New Player to Database
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex-grow md:max-w-xs">
-                        <label for="player-skill" class="block text-sm font-medium text-gray-700 mb-1">Skill Level (<span id="skill-value">5</span>)</label>
-                        <input type="range" id="player-skill" min="1" max="10" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+
+                     <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-3">Players in this Outing</h2>
+                        <div id="outing-player-list" class="mt-2 max-h-48 overflow-y-auto space-y-1 pr-2">
+                            </div>
+                        <div class="mt-4">
+                             <h3 class="text-md font-medium text-gray-600 mb-1">Skill Distribution</h3>
+                             <div id="skill-visualization-chart">
+                                 </div>
+                        </div>
                     </div>
-                    <button id="add-player-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
-                        Add Player
-                    </button>
                 </div>
-                 <div id="player-list" class="mt-4 max-h-48 overflow-y-auto space-y-1 pr-2">
-                    </div>
-            </div>
 
-            <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <h2 class="text-lg font-semibold text-gray-700 mb-3">Configure Groups</h2>
-                 <div class="flex flex-col md:flex-row md:items-center gap-4">
-                    <div class="flex-grow">
-                         <label for="num-groups" class="block text-sm font-medium text-gray-700 mb-1">Number of Groups (<span id="groups-value">2</span>)</label>
-                        <input type="range" id="num-groups" min="1" max="10" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                <div class="md:col-span-2 space-y-6">
+                    <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-3">Configure Groups</h2>
+                         <div class="flex flex-col md:flex-row md:items-center gap-4">
+                            <div class="flex-grow">
+                                 <label for="num-groups" class="block text-sm font-medium text-gray-700 mb-1">Number of Groups (<span id="groups-value">2</span>)</label>
+                                <input type="range" id="num-groups" min="1" max="10" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                             <button id="shake-up-btn" class="mt-2 md:mt-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
+                                Generate / Shake Up Groups
+                            </button>
+                         </div>
                     </div>
-                     <button id="shake-up-btn" class="mt-2 md:mt-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
-                        Generate / Shake Up Groups
-                    </button>
-                 </div>
-            </div>
 
-            <div>
-                <h2 class="text-lg font-semibold text-gray-700 mb-3">Generated Groups</h2>
-                <div id="group-display" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <p class="text-gray-500 italic">Add players and configure the number of groups above, then click "Generate / Shake Up Groups".</p>
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-700 mb-3">Generated Groups</h2>
+                        <div id="group-display" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Add players to the outing and configure the number of groups, then click "Generate / Shake Up Groups".</p>
+                        </div>
+                         <div id="message-area" class="mt-4 text-center text-red-600 font-medium"></div>
+                    </div>
                 </div>
-                 <div id="message-area" class="mt-4 text-center text-red-600 font-medium"></div>
-            </div>
 
-        </div> </div> <script>
+            </div> </div> </div> <script>
         // --- DOM Elements ---
         const tabsContainer = document.getElementById('tabs');
         const addOutingBtn = document.getElementById('add-outing-btn');
-        const playerNameInput = document.getElementById('player-name');
-        const playerSkillSlider = document.getElementById('player-skill');
-        const skillValueSpan = document.getElementById('skill-value');
-        const addPlayerBtn = document.getElementById('add-player-btn');
-        const playerListDiv = document.getElementById('player-list');
+        const playerSearchInput = document.getElementById('player-search');
+        const searchResultsDiv = document.getElementById('search-results');
+        const addNewPlayerSection = document.getElementById('add-new-player-section');
+        const newPlayerNameDisplay = document.getElementById('new-player-name-display');
+        const newPlayerSkillSlider = document.getElementById('new-player-skill');
+        const newSkillValueSpan = document.getElementById('new-skill-value');
+        const addNewPlayerBtn = document.getElementById('add-new-player-btn');
+        const outingPlayerListDiv = document.getElementById('outing-player-list');
+        const skillVisualizationChart = document.getElementById('skill-visualization-chart');
         const numGroupsSlider = document.getElementById('num-groups');
         const groupsValueSpan = document.getElementById('groups-value');
         const shakeUpBtn = document.getElementById('shake-up-btn');
@@ -140,7 +222,8 @@
         const messageArea = document.getElementById('message-area');
 
         // --- Application State ---
-        let outings = {}; // { outingId: { name: "Outing X", players: [], numberOfGroups: 2, groups: [] } }
+        let allPlayers = {}; // Central database: { "playerNameLowercase": { name: "Player Name", skill: 5 } }
+        let outings = {}; // { outingId: { name: "Outing X", playerNames: ["player name lowercase"], numberOfGroups: 2, groups: [] } }
         let activeOutingId = null;
         let nextOutingIndex = 1;
 
@@ -148,42 +231,49 @@
         function initializeApp() {
             loadData(); // Load data from localStorage
             if (Object.keys(outings).length === 0) {
-                // If no data, create the first outing
-                createNewOuting();
+                createNewOuting(); // Create the first outing if none exist
             } else {
-                // Otherwise, render existing tabs and set the first one as active
                 renderTabs();
-                // Find the first outing ID (order might not be guaranteed)
                 const firstOutingId = Object.keys(outings)[0];
                  if (firstOutingId) {
                     setActiveOuting(firstOutingId);
                  } else {
-                     // Should not happen if outings is not empty, but handle defensively
-                     createNewOuting();
+                     createNewOuting(); // Should not happen, but defensive
                  }
             }
             setupEventListeners();
-            updateUIForActiveOuting(); // Initial UI update
+            updateUIForActiveOuting(); // Initial UI update for the active outing
         }
 
         // --- Data Persistence (localStorage) ---
         function saveData() {
-            localStorage.setItem('golfGroupData', JSON.stringify({ outings, nextOutingIndex }));
+            localStorage.setItem('golfOrganizerDataV2', JSON.stringify({ allPlayers, outings, nextOutingIndex }));
         }
 
         function loadData() {
-            const savedData = localStorage.getItem('golfGroupData');
+            const savedData = localStorage.getItem('golfOrganizerDataV2');
             if (savedData) {
                 const parsedData = JSON.parse(savedData);
+                allPlayers = parsedData.allPlayers || {};
                 outings = parsedData.outings || {};
                 nextOutingIndex = parsedData.nextOutingIndex || 1;
-                 // Ensure data structure integrity (optional but good)
+                // Ensure data structure integrity
                 Object.values(outings).forEach(outing => {
-                    outing.players = outing.players || [];
+                    outing.playerNames = outing.playerNames || [];
                     outing.numberOfGroups = outing.numberOfGroups || 2;
-                    outing.groups = outing.groups || []; // Store generated groups
+                    outing.groups = outing.groups || [];
                 });
+                 // Ensure allPlayers keys are lowercase
+                const correctedPlayers = {};
+                Object.values(allPlayers).forEach(player => {
+                    if (player && player.name) {
+                         correctedPlayers[player.name.toLowerCase()] = player;
+                    }
+                });
+                allPlayers = correctedPlayers;
+
             } else {
+                 allPlayers = {};
                  outings = {};
                  nextOutingIndex = 1;
             }
@@ -191,208 +281,330 @@
 
         // --- Tab Management ---
         function renderTabs() {
-            // Clear existing tabs except the "Add Outing" button
-            tabsContainer.querySelectorAll('.tab').forEach(tab => tab.remove());
+            tabsContainer.querySelectorAll('.tab').forEach(tab => tab.remove()); // Clear existing tabs
 
             Object.keys(outings).sort((a, b) => outings[a].name.localeCompare(outings[b].name)).forEach(outingId => {
                 const outing = outings[outingId];
                 const tabButton = document.createElement('button');
-                tabButton.classList.add('tab', 'whitespace-nowrap', 'py-3', 'px-3', 'border-b-2', 'border-transparent', 'text-sm', 'font-medium', 'text-gray-500', 'rounded-t-md');
+                tabButton.classList.add('tab', 'whitespace-nowrap', 'py-3', 'px-3', 'border-b-2', 'border-transparent', 'text-sm', 'font-medium', 'text-gray-500', 'rounded-t-md', 'flex-shrink-0'); // Added flex-shrink-0
                 tabButton.textContent = outing.name;
                 tabButton.dataset.outingId = outingId;
 
-                // Add delete button to the tab
                 const deleteBtn = document.createElement('span');
-                deleteBtn.textContent = ' ✖'; // Simple 'x'
+                deleteBtn.textContent = ' ✖';
                 deleteBtn.classList.add('text-red-400', 'hover:text-red-600', 'ml-1', 'cursor-pointer');
                 deleteBtn.onclick = (event) => {
-                    event.stopPropagation(); // Prevent tab switching when clicking delete
-                    if (confirm(`Are you sure you want to delete "${outing.name}"?`)) {
+                    event.stopPropagation();
+                    if (confirm(`Are you sure you want to delete "${outing.name}"? This will not delete players from the central database.`)) {
                         deleteOuting(outingId);
                     }
                 };
                 tabButton.appendChild(deleteBtn);
 
-
                 if (outingId === activeOutingId) {
                     tabButton.classList.add('active');
-                    tabButton.classList.remove('text-gray-500'); // Remove default text color for active
+                    tabButton.classList.remove('text-gray-500');
                 }
 
                 tabButton.addEventListener('click', () => setActiveOuting(outingId));
-                tabsContainer.insertBefore(tabButton, addOutingBtn); // Insert before the "Add" button
+                tabsContainer.insertBefore(tabButton, addOutingBtn);
             });
         }
 
         function setActiveOuting(outingId) {
-            if (!outings[outingId]) return; // Outing doesn't exist
+            if (!outings[outingId]) return;
             activeOutingId = outingId;
-            renderTabs(); // Re-render tabs to highlight the active one
-            updateUIForActiveOuting(); // Update the content area
+            renderTabs();
+            updateUIForActiveOuting();
             clearMessage();
+            playerSearchInput.value = ''; // Clear search on tab switch
+            hideSearchResults();
+            hideAddNewPlayerSection();
         }
 
          function createNewOuting() {
-            const newOutingId = `outing-${Date.now()}-${Math.random().toString(16).slice(2)}`; // More unique ID
+            const newOutingId = `outing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
             const newOutingName = `Outing ${nextOutingIndex++}`;
             outings[newOutingId] = {
                 name: newOutingName,
-                players: [],
-                numberOfGroups: 2, // Default number of groups
-                groups: [] // Initialize empty groups array
+                playerNames: [], // Store only names
+                numberOfGroups: 2,
+                groups: []
             };
-            setActiveOuting(newOutingId); // Make the new outing active
-            saveData(); // Save the new state
+            setActiveOuting(newOutingId); // Activates, renders tabs, updates UI, saves
+            saveData(); // Save immediately after creation
         }
 
         function deleteOuting(outingIdToDelete) {
             if (!outings[outingIdToDelete]) return;
-
-            // Remove the outing
             delete outings[outingIdToDelete];
 
-            // If the deleted outing was the active one, select another one or create a new one
             if (activeOutingId === outingIdToDelete) {
                 const remainingOutingIds = Object.keys(outings);
                 if (remainingOutingIds.length > 0) {
-                    setActiveOuting(remainingOutingIds[0]); // Activate the first remaining outing
+                    setActiveOuting(remainingOutingIds[0]);
                 } else {
-                    // No outings left, create a new default one
-                    activeOutingId = null; // Reset active ID before creating new
-                    createNewOuting();
-                    return; // createNewOuting handles setting active and saving
+                    activeOutingId = null;
+                    createNewOuting(); // Creates and sets active
+                    return; // Avoid double save/render
                 }
             }
-
-            renderTabs(); // Update the tab display
-            saveData(); // Save changes
-            // No need to call updateUIForActiveOuting here if setActiveOuting was called
+            renderTabs(); // Re-render tabs
+            saveData();
         }
 
+        // --- Player Search and Add ---
+        function handlePlayerSearch() {
+            const searchTerm = playerSearchInput.value.trim().toLowerCase();
+            searchResultsDiv.innerHTML = ''; // Clear previous results
+            hideAddNewPlayerSection(); // Hide add new section initially
 
-        // --- Player Management ---
-        function addPlayer() {
-            const name = playerNameInput.value.trim();
-            const skill = parseInt(playerSkillSlider.value, 10);
-
-            if (!name) {
-                showMessage("Please enter a player name.");
+            if (!searchTerm) {
+                hideSearchResults();
                 return;
             }
-             if (!activeOutingId || !outings[activeOutingId]) {
-                 showMessage("Please select or add an outing first.");
-                 return;
-             }
 
-            const currentOuting = outings[activeOutingId];
+            const matchingPlayers = Object.values(allPlayers)
+                .filter(player => player.name.toLowerCase().includes(searchTerm))
+                .sort((a, b) => a.name.localeCompare(b.name)); // Sort results alphabetically
 
-            // Check if player already exists (case-insensitive)
-            const existingPlayer = currentOuting.players.find(p => p.name.toLowerCase() === name.toLowerCase());
-            if (existingPlayer) {
-                 // Update existing player's skill
-                existingPlayer.skill = skill;
-                 showMessage(`Updated skill level for ${name}.`, 'info');
+            if (matchingPlayers.length > 0) {
+                matchingPlayers.forEach(player => {
+                    const item = document.createElement('div');
+                    item.classList.add('search-result-item');
+                    item.textContent = `${player.name} (Skill: ${player.skill})`;
+                    item.addEventListener('click', () => selectPlayerFromSearch(player.name));
+                    searchResultsDiv.appendChild(item);
+                });
+                showSearchResults();
             } else {
-                // Add new player
-                currentOuting.players.push({ name, skill });
+                // No existing player found, show option to add new
+                showAddNewPlayerSection(playerSearchInput.value.trim()); // Pass the entered name
+                hideSearchResults();
             }
-
-
-            playerNameInput.value = ''; // Clear input
-            // Don't reset skill slider, user might add multiple players with similar skill
-            updatePlayerList();
-            generateAndDisplayGroups(); // Regenerate groups when player list changes
-            saveData();
-            clearMessage(); // Clear any previous error messages
         }
 
-        function removePlayer(playerName) {
+        function selectPlayerFromSearch(playerName) {
+            addPlayerToCurrentOuting(playerName);
+            playerSearchInput.value = ''; // Clear search bar
+            hideSearchResults();
+            hideAddNewPlayerSection();
+            playerSearchInput.focus(); // Keep focus on search bar
+        }
+
+        function showSearchResults() {
+            searchResultsDiv.classList.remove('hidden');
+        }
+
+        function hideSearchResults() {
+            searchResultsDiv.classList.add('hidden');
+            searchResultsDiv.innerHTML = ''; // Clear results when hiding
+        }
+
+        function showAddNewPlayerSection(nameAttempt) {
+             if (!nameAttempt) return; // Don't show if the search box was cleared
+            newPlayerNameDisplay.textContent = nameAttempt; // Show the name they tried to add
+            newPlayerSkillSlider.value = 5; // Reset skill slider
+            newSkillValueSpan.textContent = '5';
+            addNewPlayerSection.classList.remove('hidden');
+        }
+
+        function hideAddNewPlayerSection() {
+            addNewPlayerSection.classList.add('hidden');
+        }
+
+        function addNewPlayerToDatabase() {
+            const newName = newPlayerNameDisplay.textContent; // Get name from display
+            const newNameLower = newName.toLowerCase();
+            const skill = parseInt(newPlayerSkillSlider.value, 10);
+
+            if (!newName) {
+                showMessage("Cannot add a player without a name.");
+                return;
+            }
+
+            if (allPlayers[newNameLower]) {
+                showMessage(`Player "${newName}" already exists in the database.`);
+                // Optionally update skill here? For now, just notify.
+                // allPlayers[newNameLower].skill = skill;
+                // saveData();
+                // updateOutingPlayerList(); // Refresh if skill changed
+            } else {
+                // Add to central database
+                allPlayers[newNameLower] = { name: newName, skill: skill };
+                saveData();
+                showMessage(`Player "${newName}" added to database.`, 'info');
+
+                // Automatically add the newly created player to the current outing
+                addPlayerToCurrentOuting(newName);
+            }
+
+            playerSearchInput.value = ''; // Clear search bar
+            hideAddNewPlayerSection();
+            playerSearchInput.focus();
+        }
+
+
+        // --- Outing Player Management ---
+         function addPlayerToCurrentOuting(playerName) {
+             if (!activeOutingId || !outings[activeOutingId]) {
+                 showMessage("Please select an active outing first.");
+                 return;
+             }
+             const currentOuting = outings[activeOutingId];
+             const playerNameLower = playerName.toLowerCase();
+             const playerExists = allPlayers[playerNameLower];
+
+             if (!playerExists) {
+                  showMessage(`Player "${playerName}" not found in the database. Add them first.`);
+                  // Optionally trigger showing the 'add new' section again
+                  // showAddNewPlayerSection(playerName);
+                  return;
+             }
+
+             // Add player's lowercase name to the outing's list if not already present
+             if (!currentOuting.playerNames.includes(playerNameLower)) {
+                 currentOuting.playerNames.push(playerNameLower);
+                 updateOutingPlayerList(); // Update the list display
+                 updateSkillVisualization(); // Update the chart
+                 generateAndDisplayGroups(); // Regenerate groups automatically
+                 saveData();
+                 clearMessage();
+             } else {
+                  showMessage(`"${playerExists.name}" is already in this outing.`, 'info');
+             }
+         }
+
+        function removePlayerFromOuting(playerName) {
              if (!activeOutingId || !outings[activeOutingId]) return;
              const currentOuting = outings[activeOutingId];
-            currentOuting.players = currentOuting.players.filter(p => p.name !== playerName);
-            updatePlayerList();
+             const playerNameLower = playerName.toLowerCase();
+
+            currentOuting.playerNames = currentOuting.playerNames.filter(name => name !== playerNameLower);
+            updateOutingPlayerList();
+            updateSkillVisualization();
             generateAndDisplayGroups(); // Regenerate groups
             saveData();
         }
 
-        function updatePlayerList() {
-            playerListDiv.innerHTML = ''; // Clear current list
+        function updateOutingPlayerList() {
+            outingPlayerListDiv.innerHTML = ''; // Clear current list
              if (!activeOutingId || !outings[activeOutingId]) return;
 
             const currentOuting = outings[activeOutingId];
 
-            if (currentOuting.players.length === 0) {
-                playerListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players added to this outing yet.</p>';
+            if (currentOuting.playerNames.length === 0) {
+                outingPlayerListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players added to this outing yet. Use the search bar above.</p>';
                 return;
             }
 
-            currentOuting.players
-                .slice() // Create a copy to sort without modifying original
+            // Get full player objects from allPlayers using names in outing.playerNames
+            const playersInOuting = currentOuting.playerNames
+                .map(nameLower => allPlayers[nameLower])
+                .filter(player => player); // Filter out any potential inconsistencies
+
+            playersInOuting
                 .sort((a, b) => a.name.localeCompare(b.name)) // Sort alphabetically
                 .forEach(player => {
                     const playerElement = document.createElement('div');
                     playerElement.classList.add('player-item', 'flex', 'justify-between', 'items-center', 'text-sm', 'p-1.5', 'rounded');
                     playerElement.innerHTML = `
                         <span>${player.name} (Skill: ${player.skill})</span>
-                        <button class="text-red-500 hover:text-red-700 text-xs font-semibold" onclick="removePlayer('${player.name}')">Remove</button>
+                        <button class="text-red-500 hover:text-red-700 text-xs font-semibold" onclick="removePlayerFromOuting('${player.name}')">Remove</button>
                     `;
-                    playerListDiv.appendChild(playerElement);
+                    outingPlayerListDiv.appendChild(playerElement);
             });
+        }
+
+        // --- Skill Visualization ---
+        function updateSkillVisualization() {
+            skillVisualizationChart.innerHTML = ''; // Clear previous bars
+             if (!activeOutingId || !outings[activeOutingId]) return;
+
+             const currentOuting = outings[activeOutingId];
+             const playersInOuting = currentOuting.playerNames
+                .map(nameLower => allPlayers[nameLower])
+                .filter(player => player)
+                .sort((a, b) => a.name.localeCompare(b.name)); // Sort for consistent order
+
+             if (playersInOuting.length === 0) {
+                 skillVisualizationChart.innerHTML = '<p class="text-xs text-gray-400 italic w-full text-center">No players to visualize.</p>';
+                 return;
+             }
+
+             const maxSkill = 10; // Our skill range is 1-10
+
+             playersInOuting.forEach(player => {
+                 const bar = document.createElement('div');
+                 bar.classList.add('skill-bar');
+                 const barHeight = (player.skill / maxSkill) * 100; // Percentage height
+                 bar.style.height = `${barHeight}%`;
+
+                 // Add tooltip
+                 const tooltip = document.createElement('span');
+                 tooltip.classList.add('tooltip');
+                 tooltip.textContent = `${player.name}: ${player.skill}`;
+                 bar.appendChild(tooltip);
+
+                 skillVisualizationChart.appendChild(bar);
+             });
         }
 
 
         // --- Group Generation ---
         function generateGroups() {
-            clearMessage(); // Clear previous messages
+            clearMessage();
              if (!activeOutingId || !outings[activeOutingId]) {
                  showMessage("Cannot generate groups without an active outing.");
-                 return []; // Return empty array if no active outing
+                 return [];
              }
 
             const currentOuting = outings[activeOutingId];
-            const players = currentOuting.players;
-            const numGroups = currentOuting.numberOfGroups;
+            const playerNames = currentOuting.playerNames;
+            let numGroups = currentOuting.numberOfGroups; // Use let as it might change
+
+            // Fetch full player objects based on names
+            const players = playerNames
+                .map(nameLower => allPlayers[nameLower])
+                .filter(player => player); // Ensure player exists
 
             if (players.length === 0) {
-                showMessage("Add players before generating groups.");
-                return []; // Return empty array if no players
+                showMessage("Add players to the outing before generating groups.");
+                 currentOuting.groups = []; // Clear any old groups
+                 saveData();
+                return [];
             }
              if (numGroups <= 0) {
                   showMessage("Number of groups must be at least 1.");
+                  currentOuting.groups = [];
+                  saveData();
                  return [];
              }
 
             if (numGroups > players.length) {
-                showMessage("Cannot have more groups than players. Reducing number of groups.");
-                currentOuting.numberOfGroups = players.length; // Adjust slider value as well
-                numGroupsSlider.value = players.length;
-                groupsValueSpan.textContent = players.length;
-                // Continue with generation using adjusted number of groups
+                showMessage(`Cannot have more groups (${numGroups}) than players (${players.length}). Adjusting to ${players.length} groups.`);
+                numGroups = players.length; // Adjust locally for this generation
+                currentOuting.numberOfGroups = numGroups; // Update state
+                numGroupsSlider.value = numGroups; // Update slider UI
+                groupsValueSpan.textContent = numGroups; // Update slider label
             }
 
-
-            // Sort players by skill level (descending) to pick best players first
             const sortedPlayers = [...players].sort((a, b) => b.skill - a.skill);
 
-            // Initialize groups
-            const groups = Array.from({ length: currentOuting.numberOfGroups }, (_, i) => ({
+            const groups = Array.from({ length: numGroups }, (_, i) => ({
                 id: i + 1,
-                players: [],
+                players: [], // Store full player objects here for display
                 totalSkill: 0
             }));
 
-            // Distribute players greedily to the group with the lowest total skill
             sortedPlayers.forEach(player => {
-                // Find the group with the minimum total skill
                 groups.sort((a, b) => a.totalSkill - b.totalSkill);
                 groups[0].players.push(player);
                 groups[0].totalSkill += player.skill;
             });
 
-             // Store the generated groups in the outing data
-            currentOuting.groups = groups;
-            saveData(); // Save the generated groups
-
+            currentOuting.groups = groups; // Store generated groups
+            saveData();
             return groups;
         }
 
@@ -400,42 +612,41 @@
         // --- UI Updates ---
          function updateUIForActiveOuting() {
              if (!activeOutingId || !outings[activeOutingId]) {
-                // Handle state where no outing is active (e.g., after deleting the last one)
-                playerListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">Select or add an outing.</p>';
+                outingPlayerListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">Select or add an outing.</p>';
                 groupDisplayDiv.innerHTML = '<p class="text-sm text-gray-500 italic">Select or add an outing.</p>';
-                // Maybe disable inputs/sliders here if desired
+                 skillVisualizationChart.innerHTML = ''; // Clear chart too
                 return;
             }
              const currentOuting = outings[activeOutingId];
 
-            // Update player list
-            updatePlayerList();
+            updateOutingPlayerList();
+            updateSkillVisualization();
 
-            // Update number of groups slider and value display
             numGroupsSlider.value = currentOuting.numberOfGroups;
             groupsValueSpan.textContent = currentOuting.numberOfGroups;
-            // Adjust slider max based on number of players
-            numGroupsSlider.max = Math.max(1, currentOuting.players.length); // Ensure max is at least 1
+            // Adjust slider max dynamically based on players *in this outing*
+            numGroupsSlider.max = Math.max(1, currentOuting.playerNames.length || 1); // Max is at least 1, or num players
 
-             // Update group display using stored groups
-            displayGroups(currentOuting.groups);
+            displayGroups(currentOuting.groups); // Display potentially stored groups
         }
 
+        // DisplayGroups function remains largely the same as V1,
+        // as it receives group objects with player details already populated.
         function displayGroups(groups) {
-            groupDisplayDiv.innerHTML = ''; // Clear previous display
+            groupDisplayDiv.innerHTML = '';
 
             if (!groups || groups.length === 0) {
-                 if (activeOutingId && outings[activeOutingId] && outings[activeOutingId].players.length > 0) {
-                     groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic">Click "Generate / Shake Up Groups" to create groups.</p>';
+                 if (activeOutingId && outings[activeOutingId] && outings[activeOutingId].playerNames.length > 0) {
+                     groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Click "Generate / Shake Up Groups" to create groups.</p>';
                  } else if (activeOutingId && outings[activeOutingId]) {
-                      groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic">Add players first.</p>';
+                      groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Add players to this outing first.</p>';
                  } else {
-                      groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic">Select or add an outing.</p>';
+                      groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Select or add an outing.</p>';
                  }
                 return;
             }
 
-            groups.sort((a, b) => a.id - b.id).forEach(group => { // Sort by ID for consistent display
+            groups.sort((a, b) => a.id - b.id).forEach(group => {
                 const groupCard = document.createElement('div');
                 groupCard.classList.add('group-card', 'bg-white', 'p-4', 'rounded-lg', 'border', 'border-gray-200', 'shadow-sm');
 
@@ -461,8 +672,9 @@
             });
         }
 
+
         function generateAndDisplayGroups() {
-            const generatedGroups = generateGroups();
+            const generatedGroups = generateGroups(); // generateGroups now saves the result
             displayGroups(generatedGroups);
         }
 
@@ -470,6 +682,10 @@
         function showMessage(message, type = 'error') {
             messageArea.textContent = message;
             messageArea.className = `mt-4 text-center font-medium ${type === 'error' ? 'text-red-600' : 'text-blue-600'}`;
+            // Auto-clear info messages after a few seconds
+            if (type === 'info') {
+                setTimeout(clearMessage, 3000);
+            }
         }
 
         function clearMessage() {
@@ -478,42 +694,44 @@
 
         // --- Event Listeners Setup ---
         function setupEventListeners() {
-            // Update skill value display when slider changes
-            playerSkillSlider.addEventListener('input', () => {
-                skillValueSpan.textContent = playerSkillSlider.value;
-            });
-
-            // Add player on button click
-            addPlayerBtn.addEventListener('click', addPlayer);
-            // Add player on Enter key in name input
-             playerNameInput.addEventListener('keypress', (event) => {
-                if (event.key === 'Enter') {
-                    addPlayer();
+            // Player Search
+            playerSearchInput.addEventListener('input', handlePlayerSearch);
+             // Hide search results if user clicks outside
+            document.addEventListener('click', (event) => {
+                if (!playerSearchInput.contains(event.target) && !searchResultsDiv.contains(event.target)) {
+                    hideSearchResults();
+                    // Optionally hide the add new section too if search is empty
+                     if (!playerSearchInput.value.trim()) {
+                         hideAddNewPlayerSection();
+                     }
                 }
             });
 
 
-            // Update number of groups and regenerate groups when slider changes
+            // Add New Player Section
+            newPlayerSkillSlider.addEventListener('input', () => {
+                newSkillValueSpan.textContent = newPlayerSkillSlider.value;
+            });
+            addNewPlayerBtn.addEventListener('click', addNewPlayerToDatabase);
+
+            // Group Configuration
             numGroupsSlider.addEventListener('input', () => {
                 groupsValueSpan.textContent = numGroupsSlider.value;
                  if (activeOutingId && outings[activeOutingId]) {
                     outings[activeOutingId].numberOfGroups = parseInt(numGroupsSlider.value, 10);
-                    // Regenerate immediately or wait for button click? Let's wait for button.
-                    // generateAndDisplayGroups(); // Option: Regenerate on slider change
-                    saveData(); // Save the new number of groups setting
+                    // Don't regenerate automatically on slider change, wait for button
+                    saveData(); // Save the setting
                  }
             });
-
-            // Regenerate groups on "Shake Up" button click
             shakeUpBtn.addEventListener('click', generateAndDisplayGroups);
 
-            // Add new outing tab
+            // Add New Outing Tab
             addOutingBtn.addEventListener('click', createNewOuting);
         }
 
-        // --- Global Event Listener (for dynamically added elements like remove buttons) ---
-        // Using event delegation is more robust, but for simplicity with direct onclick:
-        // Make removePlayer globally accessible (it already is)
+        // Make functions called by inline onclick handlers globally accessible
+        window.removePlayerFromOuting = removePlayerFromOuting;
+        // (selectPlayerFromSearch is handled by event listener)
 
         // --- Start the application ---
         document.addEventListener('DOMContentLoaded', initializeApp);
