@@ -3,37 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Golf Group Organizer V3</title>
+    <title>Golf Group Organizer V4</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23FFFFFF'%3E%3Crect width='100' height='100' fill='%234CAF50'/%3E%3C!-- Outer Ring --%3E%3Ccircle cx='50' cy='50' r='30' stroke='%23FFFFFF' stroke-width='4' fill='none'/%3E%3C!-- Golf Ball --%3E%3Ccircle cx='50' cy='35' r='12' fill='%23FFFFFF'/%3E%3C!-- Dimples (simplified) --%3E%3Ccircle cx='45' cy='30' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='55' cy='30' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='50' cy='26' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='43' cy='35' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='57' cy='35' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='47' cy='40' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='53' cy='40' r='1.5' fill='%23CCCCCC'/%3E%3C!-- Tee --%3E%3Cpath d='M47 47 L 47 60 Q 47 63 50 63 Q 53 63 53 60 L 53 47 Z' fill='%23FFFFFF'/%3E%3C!-- Grass --%3E%3Cpath d='M40 63 C 42 60, 45 58, 50 58 S 58 60, 60 63 Z' fill='%23FFFFFF'/%3E%3Cpath d='M42 65 C 44 62, 47 60, 50 60 S 56 62, 58 65 Z' fill='%23FFFFFF' opacity='0.7'/%3E%3C!-- Ground line --%3E%3Cellipse cx='50' cy='64' rx='15' ry='3' fill='%23FFFFFF'/%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles */
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Style for active tab */
-        .tab.active {
-            border-bottom-color: #3b82f6; /* Blue */
-            font-weight: 600;
-            color: #3b82f6;
-        }
-        /* Style for Player Management tab (always visible) */
-        .tab-manage-players {
-             border-bottom-color: #6b7280; /* Gray */
-             color: #1f2937; /* Darker Gray */
-        }
-         .tab-manage-players.active {
-             border-bottom-color: #10b981; /* Emerald */
-             font-weight: 600;
-             color: #10b981;
-         }
-
-        /* Style for tab hover */
-        .tab:not(.active):hover {
-            border-bottom-color: #d1d5db;
-            color: #6b7280;
-        }
-        /* Sliders */
-        input[type=range] {
+        /* Custom styles (mostly same as V3) */
+        body { font-family: 'Inter', sans-serif; }
+        .tab.active { border-bottom-color: #3b82f6; font-weight: 600; color: #3b82f6; }
+        .tab-manage-players { border-bottom-color: #6b7280; color: #1f2937; }
+        .tab-manage-players.active { border-bottom-color: #10b981; font-weight: 600; color: #10b981; }
+        .tab:not(.active):hover { border-bottom-color: #d1d5db; color: #6b7280; }
+        input[type=range] { /* Keep for skill sliders */
             -webkit-appearance: none; appearance: none; width: 100%; height: 8px;
             background: #d1d5db; outline: none; opacity: 0.7; transition: opacity .2s;
             border-radius: 9999px;
@@ -47,78 +27,54 @@
             width: 20px; height: 20px; background: #3b82f6; cursor: pointer;
             border-radius: 50%; border: none;
         }
-        /* Animations and Hover Effects */
+        /* Style Number Input */
+        input[type=number] {
+             -moz-appearance: textfield; /* Firefox */
+             appearance: textfield;
+             border: 1px solid #d1d5db;
+             padding: 0.5rem 0.75rem;
+             border-radius: 0.375rem; /* rounded-md */
+             width: 60px; /* Adjust width as needed */
+             text-align: center;
+        }
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
         .group-card, .player-item { transition: all 0.2s ease-in-out; }
         .player-item:hover { background-color: #f3f4f6; }
-        /* Search results */
         #search-results {
             max-height: 150px; overflow-y: auto; border: 1px solid #d1d5db;
             border-top: none; border-radius: 0 0 0.375rem 0.375rem; background-color: white;
-            position: absolute; width: 100%; /* Adjusted width */
-            z-index: 10; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            position: absolute; width: 100%; z-index: 10;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
         .search-result-item { padding: 0.5rem 0.75rem; cursor: pointer; }
         .search-result-item:hover { background-color: #eff6ff; }
-
-        /* Inline Skill Bar (Player List) */
         .inline-skill-bar-container {
-            display: inline-block;
-            width: 50px; /* Fixed width for the bar container */
-            height: 10px; /* Height of the bar */
-            background-color: #e5e7eb; /* Light gray background */
-            border-radius: 5px;
-            overflow: hidden;
-            margin-left: 8px;
-            vertical-align: middle;
+            display: inline-block; width: 50px; height: 10px; background-color: #e5e7eb;
+            border-radius: 5px; overflow: hidden; margin-left: 8px; vertical-align: middle;
         }
-        .inline-skill-bar {
-            height: 100%;
-            background-color: #60a5fa; /* Blue bar */
-            border-radius: 5px 0 0 5px; /* Rounded left edge */
-            transition: width 0.3s ease-in-out;
-        }
-
-         /* Group Total Skill Bar */
-        .group-skill-bar-container {
-            width: 100%; height: 12px; background-color: #e5e7eb;
-            border-radius: 6px; overflow: hidden; margin-top: 8px;
-        }
-        .group-skill-bar {
-            height: 100%; background-color: #34d399; /* Emerald bar */
-            border-radius: 6px 0 0 6px; transition: width 0.3s ease-in-out;
-            text-align: right; padding-right: 5px;
-            font-size: 0.65rem; line-height: 12px; color: white; font-weight: 600;
-        }
-        /* Tooltip (shared) */
-         .tooltip-container { position: relative; display: inline-block; }
-         .tooltiptext {
-            visibility: hidden; width: max-content; background-color: #374151; color: #fff;
-            text-align: center; border-radius: 6px; padding: 5px 8px; position: absolute;
-            z-index: 1; bottom: 125%; left: 50%; transform: translateX(-50%);
-            opacity: 0; transition: opacity 0.3s; font-size: 0.75rem; white-space: nowrap;
-        }
+        .inline-skill-bar { height: 100%; background-color: #60a5fa; border-radius: 5px 0 0 5px; transition: width 0.3s ease-in-out; }
+        .group-skill-bar-container { width: 100%; height: 12px; background-color: #e5e7eb; border-radius: 6px; overflow: hidden; margin-top: 8px; }
+        .group-skill-bar { height: 100%; background-color: #34d399; border-radius: 6px 0 0 6px; transition: width 0.3s ease-in-out; text-align: right; padding-right: 5px; font-size: 0.65rem; line-height: 12px; color: white; font-weight: 600; }
+        .tooltip-container { position: relative; display: inline-block; }
+        .tooltiptext { visibility: hidden; width: max-content; background-color: #374151; color: #fff; text-align: center; border-radius: 6px; padding: 5px 8px; position: absolute; z-index: 1; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; font-size: 0.75rem; white-space: nowrap; }
         .tooltip-container:hover .tooltiptext { visibility: visible; opacity: 1; }
+        .icon-btn { cursor: pointer; margin-left: 4px; vertical-align: middle; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; }
+        .icon-btn:hover { background-color: #e5e7eb; }
+        .icon-btn svg { width: 12px; height: 12px; }
+        .edit-icon { color: #6b7280; } .delete-icon { color: #ef4444; }
+        .edit-icon:hover { color: #3b82f6; } .delete-icon:hover { color: #dc2626; }
+        .mgmt-player-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; }
+        .mgmt-player-item:last-child { border-bottom: none; }
 
-        /* Edit/Delete Icons */
-        .icon-btn {
-            cursor: pointer; margin-left: 4px; vertical-align: middle;
-            display: inline-flex; align-items: center; justify-content: center;
-             width: 18px; height: 18px; border-radius: 4px;
-        }
-         .icon-btn:hover { background-color: #e5e7eb; }
-         .icon-btn svg { width: 12px; height: 12px; }
-         .edit-icon { color: #6b7280; }
-         .delete-icon { color: #ef4444; }
-         .edit-icon:hover { color: #3b82f6; }
-         .delete-icon:hover { color: #dc2626; }
-
-         /* Player Management List Item */
-         .mgmt-player-item {
-             display: flex; justify-content: space-between; align-items: center;
-             padding: 8px; border-bottom: 1px solid #eee;
-         }
-          .mgmt-player-item:last-child { border-bottom: none; }
-
+        /* Modal Styles */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-content { background-color: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); max-width: 400px; width: 90%; transform: scale(0.95); transition: transform 0.3s ease; }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -127,100 +83,106 @@
 <body class="bg-gray-100 p-4 md:p-8">
 
     <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-md p-6">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Golf Group Organizer V3</h1>
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Golf Group Organizer V4</h1>
 
         <div class="border-b border-gray-200 mb-6">
             <nav id="tabs" class="-mb-px flex space-x-4 overflow-x-auto pb-1" aria-label="Tabs">
-                <button id="tab-manage-players-btn" class="tab tab-manage-players whitespace-nowrap py-3 px-3 border-b-2 text-sm font-medium rounded-t-md flex-shrink-0">
-                    Manage Players
-                 </button>
-                <button id="add-outing-btn" class="flex-shrink-0 whitespace-nowrap py-3 px-3 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 rounded-t-md">
-                    + Add Outing
-                </button>
-            </nav>
+                 <button id="tab-manage-players-btn" class="tab tab-manage-players whitespace-nowrap py-3 px-3 border-b-2 text-sm font-medium rounded-t-md flex-shrink-0">Manage Players</button>
+                 <button id="add-outing-btn" class="flex-shrink-0 whitespace-nowrap py-3 px-3 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 rounded-t-md">+ Add Outing</button>
+                 </nav>
         </div>
 
         <div id="tab-content">
 
             <div id="outing-view" class="hidden">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="md:col-span-1 space-y-6">
-                        <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                            <h2 class="text-lg font-semibold text-gray-700 mb-3">Add Players to Outing</h2>
-                            <div class="relative">
-                                <label for="player-search" class="block text-sm font-medium text-gray-700 mb-1">Search Database</label>
-                                <input type="text" id="player-search" placeholder="Start typing player name..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <div id="search-results" class="absolute left-0 right-0 mt-1 hidden"></div>
-                            </div>
-                            <div id="add-new-player-section" class="mt-4 pt-4 border-t border-gray-200 hidden">
-                                <h3 class="text-md font-semibold text-gray-600 mb-2">Add New Player</h3>
-                                <p class="text-sm mb-2">Player "<strong id="new-player-name-display"></strong>" not found.</p>
-                                <div class="mb-3">
-                                    <label for="new-player-skill" class="block text-sm font-medium text-gray-700 mb-1">Set Skill Level (<span id="new-skill-value">5</span>)</label>
-                                    <input type="range" id="new-player-skill" min="1" max="10" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                                </div>
-                                <button id="add-new-player-btn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
-                                    Add New Player to Database
-                                </button>
-                            </div>
-                        </div>
-
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                     <div class="md:col-span-1 space-y-6">
                          <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                            <h2 class="text-lg font-semibold text-gray-700 mb-3">Players in this Outing</h2>
-                            <div id="outing-player-list" class="mt-2 max-h-60 overflow-y-auto space-y-1 pr-2">
-                                </div>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2 space-y-6">
-                        <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                            <h2 class="text-lg font-semibold text-gray-700 mb-3">Configure Groups</h2>
-                             <div class="flex flex-col md:flex-row md:items-center gap-4">
-                                <div class="flex-grow">
-                                     <label for="num-groups" class="block text-sm font-medium text-gray-700 mb-1">Number of Groups (<span id="groups-value">2</span>)</label>
-                                    <input type="range" id="num-groups" min="1" max="10" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                                </div>
-                                 <button id="shake-up-btn" class="mt-2 md:mt-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
-                                    Generate / Shake Up Groups
-                                </button>
+                             <h2 class="text-lg font-semibold text-gray-700 mb-3">Add Players to Outing</h2>
+                             <div class="relative">
+                                 <label for="player-search" class="block text-sm font-medium text-gray-700 mb-1">Search Database</label>
+                                 <input type="text" id="player-search" placeholder="Start typing player name..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                 <div id="search-results" class="absolute left-0 right-0 mt-1 hidden"></div>
                              </div>
-                        </div>
-
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-700 mb-3">Generated Groups</h2>
-                            <div id="group-display" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                </div>
-                        </div>
-                    </div>
-                </div>
-            </div> <div id="player-management-view" class="hidden">
-                 <h2 class="text-xl font-semibold text-gray-700 mb-4">Player Database Management</h2>
-                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                         <h3 class="text-lg font-semibold text-gray-700 mb-3">Add Player to Database</h3>
-                         <div class="space-y-3">
-                             <div>
-                                 <label for="mgmt-player-name" class="block text-sm font-medium text-gray-700">Player Name</label>
-                                 <input type="text" id="mgmt-player-name" placeholder="Enter full name" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                             <div id="add-new-player-section" class="mt-4 pt-4 border-t border-gray-200 hidden">
+                                 <h3 class="text-md font-semibold text-gray-600 mb-2">Add New Player</h3>
+                                 <p class="text-sm mb-2">Player "<strong id="new-player-name-display"></strong>" not found.</p>
+                                 <div class="mb-3">
+                                     <label for="new-player-skill" class="block text-sm font-medium text-gray-700 mb-1">Set Skill Level (<span id="new-skill-value">5</span>)</label>
+                                     <input type="range" id="new-player-skill" min="1" max="10" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                 </div>
+                                 <button id="add-new-player-btn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">Add New Player to Database</button>
                              </div>
-                             <div>
-                                 <label for="mgmt-player-skill" class="block text-sm font-medium text-gray-700">Skill Level (<span id="mgmt-skill-value">5</span>)</label>
-                                 <input type="range" id="mgmt-player-skill" min="1" max="10" value="5" class="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                             </div>
-                             <button id="mgmt-add-player-btn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
-                                 Add Player
-                             </button>
+                         </div>
+                         <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                             <h2 class="text-lg font-semibold text-gray-700 mb-3">Players in this Outing</h2>
+                             <div id="outing-player-list" class="mt-2 max-h-60 overflow-y-auto space-y-1 pr-2"></div>
                          </div>
                      </div>
-                     <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                         <h3 class="text-lg font-semibold text-gray-700 mb-3">All Players</h3>
-                         <div id="all-players-list" class="max-h-96 overflow-y-auto space-y-1 pr-2">
-                             </div>
+                     <div class="md:col-span-2 space-y-6">
+                         <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                             <h2 class="text-lg font-semibold text-gray-700 mb-3">Configure Groups</h2>
+                              <div class="flex flex-col md:flex-row md:items-center gap-4">
+                                 <div class="flex items-center gap-2">
+                                      <label for="num-groups" class="block text-sm font-medium text-gray-700">Number of Groups:</label>
+                                     <input type="number" id="num-groups" min="1" max="10" step="1" value="3" class="shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                 </div>
+                                  <button id="recalculate-btn" class="mt-2 md:mt-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
+                                     Recalculate Groups
+                                 </button>
+                              </div>
+                         </div>
+                         <div>
+                             <h2 class="text-lg font-semibold text-gray-700 mb-3">Generated Groups</h2>
+                             <div id="group-display" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                         </div>
                      </div>
                  </div>
+            </div> <div id="player-management-view" class="hidden">
+                  <h2 class="text-xl font-semibold text-gray-700 mb-4">Player Database Management</h2>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                          <h3 class="text-lg font-semibold text-gray-700 mb-3">Add Player to Database</h3>
+                          <div class="space-y-3">
+                              <div>
+                                  <label for="mgmt-player-name" class="block text-sm font-medium text-gray-700">Player Name</label>
+                                  <input type="text" id="mgmt-player-name" placeholder="Enter full name" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                              </div>
+                              <div>
+                                  <label for="mgmt-player-skill" class="block text-sm font-medium text-gray-700">Skill Level (<span id="mgmt-skill-value">5</span>)</label>
+                                  <input type="range" id="mgmt-player-skill" min="1" max="10" value="5" class="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                              </div>
+                              <button id="mgmt-add-player-btn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">Add Player</button>
+                          </div>
+                      </div>
+                      <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                          <h3 class="text-lg font-semibold text-gray-700 mb-3">All Players</h3>
+                          <div id="all-players-list" class="max-h-96 overflow-y-auto space-y-1 pr-2"></div>
+                      </div>
+                  </div>
             </div> <div id="message-area" class="mt-6 text-center font-medium"></div>
 
-        </div> </div> <script>
+        </div> <div id="edit-player-modal" class="modal-overlay">
+            <div class="modal-content">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Edit Player</h3>
+                <input type="hidden" id="edit-player-original-name"> <div class="space-y-4">
+                    <div>
+                        <label for="edit-player-name" class="block text-sm font-medium text-gray-700">Player Name</label>
+                        <input type="text" id="edit-player-name" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="edit-player-skill" class="block text-sm font-medium text-gray-700">Skill Level (<span id="edit-skill-value">5</span>)</label>
+                        <input type="range" id="edit-player-skill" min="1" max="10" value="5" class="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="cancel-edit-player-btn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">Cancel</button>
+                    <button id="save-edit-player-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+    </div> <script>
         // --- DOM Elements ---
         const tabsContainer = document.getElementById('tabs');
         const managePlayersTabBtn = document.getElementById('tab-manage-players-btn');
@@ -236,9 +198,9 @@
         const newSkillValueSpan = document.getElementById('new-skill-value');
         const addNewPlayerBtn = document.getElementById('add-new-player-btn');
         const outingPlayerListDiv = document.getElementById('outing-player-list');
-        const numGroupsSlider = document.getElementById('num-groups');
-        const groupsValueSpan = document.getElementById('groups-value');
-        const shakeUpBtn = document.getElementById('shake-up-btn');
+        const numGroupsInput = document.getElementById('num-groups'); // Changed from slider
+        // const groupsValueSpan = document.getElementById('groups-value'); // Removed span
+        const recalculateBtn = document.getElementById('recalculate-btn'); // Renamed from shakeUpBtn
         const groupDisplayDiv = document.getElementById('group-display');
         // Player Management View Elements
         const mgmtPlayerNameInput = document.getElementById('mgmt-player-name');
@@ -246,79 +208,86 @@
         const mgmtSkillValueSpan = document.getElementById('mgmt-skill-value');
         const mgmtAddPlayerBtn = document.getElementById('mgmt-add-player-btn');
         const allPlayersListDiv = document.getElementById('all-players-list');
+        // Edit Player Modal Elements
+        const editPlayerModal = document.getElementById('edit-player-modal');
+        const editPlayerOriginalNameInput = document.getElementById('edit-player-original-name');
+        const editPlayerNameInput = document.getElementById('edit-player-name');
+        const editPlayerSkillSlider = document.getElementById('edit-player-skill');
+        const editSkillValueSpan = document.getElementById('edit-skill-value');
+        const cancelEditPlayerBtn = document.getElementById('cancel-edit-player-btn');
+        const saveEditPlayerBtn = document.getElementById('save-edit-player-btn');
         // Global Elements
         const messageArea = document.getElementById('message-area');
 
         // --- Application State ---
         let allPlayers = {}; // Central DB: { "lowercase name": { name: "Proper Name", skill: 5 } }
-        let outings = {}; // { outingId: { name: "Outing Name", playerNames: ["lowercase name"], numberOfGroups: 2, groups: [] } }
-        let activeOutingId = null; // ID of the currently active outing tab
-        let currentViewMode = 'outing'; // 'outing' or 'playerManagement'
+        let outings = {}; // { outingId: { name: "Outing Name", playerNames: ["lowercase name"], numberOfGroups: 3, groups: [] } }
+        let activeOutingId = null;
+        let currentViewMode = 'outing';
         let nextOutingIndex = 1;
 
         // --- Constants ---
-        const PLAYER_MGMT_VIEW_ID = 'playerManagement'; // Special ID for the management view
+        const PLAYER_MGMT_VIEW_ID = 'playerManagement';
+        const GOLF_GROUP_NAMES = [ // Fun names for groups
+            "The Eagles", "Fairway Finders", "Team Bogey", "The Birdies", "Sand Trappers",
+            "Long Drivers", "Putt Pirates", "The Mulligans", "Chip Shots", "Green Jackets",
+            "Hole-in-Ones", "Pin Seekers", "The Caddies", "Divot Diggers", "Slice Squad"
+        ];
 
         // --- Initialization ---
         function initializeApp() {
             loadData();
             setupEventListeners();
-            renderTabs(); // Render static + dynamic tabs
-            // Determine initial view
+            renderTabs();
             if (Object.keys(outings).length > 0) {
-                // Activate the first outing if available
                 const firstOutingId = Object.keys(outings).sort((a, b) => outings[a].name.localeCompare(outings[b].name))[0];
                 setActiveView(firstOutingId);
             } else {
-                // If no outings, default to player management view
                 setActiveView(PLAYER_MGMT_VIEW_ID);
             }
         }
 
         // --- Data Persistence ---
         function saveData() {
-            localStorage.setItem('golfOrganizerDataV3', JSON.stringify({ allPlayers, outings, nextOutingIndex }));
-             console.log("Data saved:", { allPlayers, outings, nextOutingIndex });
+            localStorage.setItem('golfOrganizerDataV4', JSON.stringify({ allPlayers, outings, nextOutingIndex }));
+            console.log("Data saved:", { allPlayers, outings, nextOutingIndex });
         }
 
         function loadData() {
-            const savedData = localStorage.getItem('golfOrganizerDataV3');
+            const savedData = localStorage.getItem('golfOrganizerDataV4');
             if (savedData) {
                 const parsedData = JSON.parse(savedData);
                 allPlayers = parsedData.allPlayers || {};
                 outings = parsedData.outings || {};
                 nextOutingIndex = parsedData.nextOutingIndex || 1;
-                // Data integrity checks
                 Object.values(outings).forEach(outing => {
                     outing.playerNames = outing.playerNames || [];
-                    outing.numberOfGroups = outing.numberOfGroups || 2;
+                    outing.numberOfGroups = outing.numberOfGroups || 3; // Default to 3
                     outing.groups = outing.groups || [];
                 });
-                // Ensure keys are lowercase and structure is correct
                 const correctedPlayers = {};
                 Object.values(allPlayers).forEach(player => {
-                    if (player && player.name) {
-                         correctedPlayers[player.name.toLowerCase()] = player;
-                    }
+                    if (player && player.name) { correctedPlayers[player.name.toLowerCase()] = player; }
                 });
                 allPlayers = correctedPlayers;
-                 console.log("Data loaded:", { allPlayers, outings, nextOutingIndex });
+                console.log("Data loaded:", { allPlayers, outings, nextOutingIndex });
             } else {
-                 allPlayers = {}; outings = {}; nextOutingIndex = 1;
-                 console.log("No saved data found, initializing empty state.");
+                allPlayers = {}; outings = {}; nextOutingIndex = 1;
+                console.log("No saved data found, initializing empty state.");
             }
         }
 
         // --- View Management ---
         function setActiveView(id) {
             clearMessage();
-            playerSearchInput.value = ''; // Clear search always
+            playerSearchInput.value = '';
             hideSearchResults();
             hideAddNewPlayerSection();
+            closeEditModal(); // Ensure modal is closed on view change
 
             if (id === PLAYER_MGMT_VIEW_ID) {
                 currentViewMode = 'playerManagement';
-                activeOutingId = null; // No outing is active
+                activeOutingId = null;
                 outingViewDiv.classList.add('hidden');
                 playerManagementViewDiv.classList.remove('hidden');
                 renderPlayerManagementView();
@@ -327,599 +296,477 @@
                 activeOutingId = id;
                 outingViewDiv.classList.remove('hidden');
                 playerManagementViewDiv.classList.add('hidden');
-                updateOutingViewUI(); // Update UI for the selected outing
+                updateOutingViewUI();
             } else {
-                console.error("Attempted to activate invalid view/outing ID:", id);
-                // Fallback: Go to player management if outing ID is invalid
-                setActiveView(PLAYER_MGMT_VIEW_ID);
-                return; // Prevent further execution with invalid state
+                console.error("Invalid view/outing ID:", id);
+                setActiveView(PLAYER_MGMT_VIEW_ID); // Fallback
+                return;
             }
-            highlightActiveTab(id); // Update tab highlighting
+            highlightActiveTab(id);
         }
 
         // --- Tab Management ---
         function highlightActiveTab(activeId) {
-             // Deactivate all tabs first
             tabsContainer.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            managePlayersTabBtn.classList.remove('active'); // Specifically for the static tab
-
-             // Activate the correct tab
-             if (activeId === PLAYER_MGMT_VIEW_ID) {
-                 managePlayersTabBtn.classList.add('active');
-             } else {
-                 const activeTabButton = tabsContainer.querySelector(`.tab[data-outing-id="${activeId}"]`);
-                 if (activeTabButton) {
-                     activeTabButton.classList.add('active');
-                 }
-             }
+            managePlayersTabBtn.classList.remove('active');
+            if (activeId === PLAYER_MGMT_VIEW_ID) {
+                managePlayersTabBtn.classList.add('active');
+            } else {
+                const activeTabButton = tabsContainer.querySelector(`.tab[data-outing-id="${activeId}"]`);
+                if (activeTabButton) { activeTabButton.classList.add('active'); }
+            }
         }
 
         function renderTabs() {
-            // Clear only dynamic outing tabs
+            // Same rendering logic as V3, including edit/delete buttons
             tabsContainer.querySelectorAll('.outing-tab').forEach(tab => tab.remove());
-
-            // Render outing tabs
             Object.keys(outings).sort((a, b) => outings[a].name.localeCompare(outings[b].name)).forEach(outingId => {
                 const outing = outings[outingId];
                 const tabButton = document.createElement('button');
-                // Add 'outing-tab' class for easy selection/removal
                 tabButton.className = 'tab outing-tab whitespace-nowrap py-3 px-3 border-b-2 border-transparent text-sm font-medium text-gray-500 rounded-t-md flex-shrink-0 flex items-center';
                 tabButton.dataset.outingId = outingId;
-
-                // Outing Name Span (for potential inline editing later if desired)
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = outing.name;
                 tabButton.appendChild(nameSpan);
-
-                // Edit Button
                 const editBtn = document.createElement('span');
-                editBtn.className = 'icon-btn edit-icon ml-2'; // Added margin-left
+                editBtn.className = 'icon-btn edit-icon ml-2';
                 editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>`;
-                editBtn.onclick = (event) => {
-                    event.stopPropagation(); // Prevent tab switching
-                    editOutingName(outingId);
-                };
+                editBtn.onclick = (event) => { event.stopPropagation(); editOutingName(outingId); };
                 tabButton.appendChild(editBtn);
-
-                // Delete Button
                 const deleteBtn = document.createElement('span');
                 deleteBtn.className = 'icon-btn delete-icon';
                 deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>`;
-                deleteBtn.onclick = (event) => {
-                    event.stopPropagation();
-                    if (confirm(`Are you sure you want to delete outing "${outing.name}"? Players won't be removed from the database.`)) {
-                        deleteOuting(outingId);
-                    }
-                };
+                deleteBtn.onclick = (event) => { event.stopPropagation(); if (confirm(`Delete outing "${outing.name}"?`)) { deleteOuting(outingId); } };
                 tabButton.appendChild(deleteBtn);
-
                 tabButton.addEventListener('click', () => setActiveView(outingId));
-                tabsContainer.insertBefore(tabButton, addOutingBtn); // Insert before the "Add" button
+                tabsContainer.insertBefore(tabButton, addOutingBtn);
             });
-
-             // Re-apply active state after rendering
             highlightActiveTab(currentViewMode === 'playerManagement' ? PLAYER_MGMT_VIEW_ID : activeOutingId);
         }
 
-
         function createNewOuting() {
+            // Same as V3
             const newOutingId = `outing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
             const newOutingName = `Outing ${nextOutingIndex++}`;
-            outings[newOutingId] = { name: newOutingName, playerNames: [], numberOfGroups: 2, groups: [] };
+            outings[newOutingId] = { name: newOutingName, playerNames: [], numberOfGroups: 3, groups: [] }; // Default groups = 3
             saveData();
-            renderTabs(); // Re-render tabs to include the new one
-            setActiveView(newOutingId); // Switch to the new outing view
+            renderTabs();
+            setActiveView(newOutingId);
         }
 
-         function editOutingName(outingId) {
+        function editOutingName(outingId) {
+            // Same as V3
              if (!outings[outingId]) return;
              const currentName = outings[outingId].name;
              const newName = prompt(`Enter new name for outing "${currentName}":`, currentName);
-
              if (newName && newName.trim() !== '' && newName.trim() !== currentName) {
                  outings[outingId].name = newName.trim();
                  saveData();
-                 renderTabs(); // Re-render tabs to show the new name
-                 // Active tab highlighting is handled by renderTabs calling highlightActiveTab
-             } else if (newName !== null) { // User didn't cancel, but entered empty or same name
-                 showMessage("Outing name cannot be empty or unchanged.", "error");
-             }
+                 renderTabs();
+             } else if (newName !== null) { showMessage("Outing name cannot be empty or unchanged.", "error"); }
          }
 
-
         function deleteOuting(outingIdToDelete) {
+            // Same as V3
             if (!outings[outingIdToDelete]) return;
             delete outings[outingIdToDelete];
-
-            // If the deleted outing was active, switch view
             if (activeOutingId === outingIdToDelete) {
                 const remainingOutingIds = Object.keys(outings);
                 if (remainingOutingIds.length > 0) {
-                    // Activate the first remaining outing
                     setActiveView(remainingOutingIds.sort((a, b) => outings[a].name.localeCompare(outings[b].name))[0]);
                 } else {
-                    // No outings left, switch to player management view
                     setActiveView(PLAYER_MGMT_VIEW_ID);
                 }
             }
             saveData();
-            renderTabs(); // Update tab display (active highlighting is handled by setActiveView)
+            renderTabs();
         }
 
         // --- Player Search and Add (Outing View) ---
-        function handlePlayerSearch() {
-            // Same logic as V2
+        function handlePlayerSearch() { /* Same as V3 */ handlePlayerSearchV3(); }
+        function selectPlayerFromSearch(playerName) { /* Same as V3 */ selectPlayerFromSearchV3(playerName); }
+        function showSearchResults() { searchResultsDiv.classList.remove('hidden'); }
+        function hideSearchResults() { searchResultsDiv.classList.add('hidden'); searchResultsDiv.innerHTML = ''; }
+        function showAddNewPlayerSection(nameAttempt) { /* Same as V3 */ showAddNewPlayerSectionV3(nameAttempt); }
+        function hideAddNewPlayerSection() { addNewPlayerSection.classList.add('hidden'); }
+        function addNewPlayerFromOutingView() { /* Same as V3 */ addNewPlayerFromOutingViewV3(); }
+
+        // --- Replicated V3 functions for brevity ---
+        function handlePlayerSearchV3() {
             const searchTerm = playerSearchInput.value.trim().toLowerCase();
-            searchResultsDiv.innerHTML = '';
-            hideAddNewPlayerSection();
-
-            if (!searchTerm) {
-                hideSearchResults();
-                return;
-            }
-
+            searchResultsDiv.innerHTML = ''; hideAddNewPlayerSection();
+            if (!searchTerm) { hideSearchResults(); return; }
             const matchingPlayers = Object.values(allPlayers)
                 .filter(player => player.name.toLowerCase().includes(searchTerm))
                 .sort((a, b) => a.name.localeCompare(b.name));
-
             if (matchingPlayers.length > 0) {
                 matchingPlayers.forEach(player => {
-                    const item = document.createElement('div');
-                    item.classList.add('search-result-item');
+                    const item = document.createElement('div'); item.classList.add('search-result-item');
                     item.textContent = `${player.name} (Skill: ${player.skill})`;
                     item.addEventListener('click', () => selectPlayerFromSearch(player.name));
                     searchResultsDiv.appendChild(item);
                 });
                 showSearchResults();
-            } else {
-                showAddNewPlayerSection(playerSearchInput.value.trim());
-                hideSearchResults();
-            }
+            } else { showAddNewPlayerSection(playerSearchInput.value.trim()); hideSearchResults(); }
         }
-
-        function selectPlayerFromSearch(playerName) {
-            // Same logic as V2
-            addPlayerToCurrentOuting(playerName);
-            playerSearchInput.value = '';
-            hideSearchResults();
-            hideAddNewPlayerSection();
-            playerSearchInput.focus();
+        function selectPlayerFromSearchV3(playerName) {
+            addPlayerToCurrentOuting(playerName); playerSearchInput.value = '';
+            hideSearchResults(); hideAddNewPlayerSection(); playerSearchInput.focus();
         }
-
-        function showSearchResults() { searchResultsDiv.classList.remove('hidden'); }
-        function hideSearchResults() { searchResultsDiv.classList.add('hidden'); searchResultsDiv.innerHTML = ''; }
-        function showAddNewPlayerSection(nameAttempt) {
-             if (!nameAttempt) return;
-             newPlayerNameDisplay.textContent = nameAttempt;
-             newPlayerSkillSlider.value = 5;
-             newSkillValueSpan.textContent = '5';
+         function showAddNewPlayerSectionV3(nameAttempt) {
+             if (!nameAttempt) return; newPlayerNameDisplay.textContent = nameAttempt;
+             newPlayerSkillSlider.value = 5; newSkillValueSpan.textContent = '5';
              addNewPlayerSection.classList.remove('hidden');
         }
-        function hideAddNewPlayerSection() { addNewPlayerSection.classList.add('hidden'); }
-
-        function addNewPlayerFromOutingView() {
-            // Adds player to DB *and* current outing
+        function addNewPlayerFromOutingViewV3() {
             const newName = newPlayerNameDisplay.textContent;
             const skill = parseInt(newPlayerSkillSlider.value, 10);
-
-            const success = addPlayerToDatabase(newName, skill); // Use the central function
-
+            const success = addPlayerToDatabase(newName, skill);
             if (success) {
-                // If added successfully to DB, also add to current outing
-                addPlayerToCurrentOuting(newName);
-                playerSearchInput.value = ''; // Clear search bar
-                hideAddNewPlayerSection();
-                playerSearchInput.focus();
+                addPlayerToCurrentOuting(newName); playerSearchInput.value = '';
+                hideAddNewPlayerSection(); playerSearchInput.focus();
             }
-            // addPlayerToDatabase handles messages
         }
+        // --- End Replicated V3 functions ---
+
 
         // --- Outing Player Management ---
          function addPlayerToCurrentOuting(playerName) {
-             // Same logic as V2 - adds player *name* to outing list
+             // Adds player name, updates list, triggers auto group generation
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) {
-                 showMessage("Please select an active outing first.");
-                 return;
+                 showMessage("Please select an active outing first.", "error"); return;
              }
              const currentOuting = outings[activeOutingId];
              const playerNameLower = playerName.toLowerCase();
              const playerExists = allPlayers[playerNameLower];
 
-             if (!playerExists) {
-                  showMessage(`Player "${playerName}" not found. Add via 'Manage Players' tab or search again.`, "error");
-                  return;
-             }
+             if (!playerExists) { showMessage(`Player "${playerName}" not found.`, "error"); return; }
 
              if (!currentOuting.playerNames.includes(playerNameLower)) {
                  currentOuting.playerNames.push(playerNameLower);
-                 updateOutingPlayerList(); // Update the list display
-                 generateAndDisplayGroups(); // Regenerate groups
-                 saveData();
+                 saveData(); // Save before UI updates
+                 updateOutingPlayerList();
+                 generateAndDisplayGroups(false); // Auto-generate (no shuffle)
                  clearMessage();
-             } else {
-                  showMessage(`"${playerExists.name}" is already in this outing.`, 'info');
-             }
+             } else { showMessage(`"${playerExists.name}" is already in this outing.`, 'info'); }
          }
 
         function removePlayerFromOuting(playerName) {
-            // Same logic as V2 - removes player *name* from outing list
+            // Removes player name, updates list, triggers auto group generation
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
              const currentOuting = outings[activeOutingId];
              const playerNameLower = playerName.toLowerCase();
-
-            currentOuting.playerNames = currentOuting.playerNames.filter(name => name !== playerNameLower);
-            updateOutingPlayerList();
-            generateAndDisplayGroups(); // Regenerate groups
-            saveData();
+             currentOuting.playerNames = currentOuting.playerNames.filter(name => name !== playerNameLower);
+             saveData(); // Save before UI updates
+             updateOutingPlayerList();
+             generateAndDisplayGroups(false); // Auto-generate (no shuffle)
         }
 
         function updateOutingPlayerList() {
-            // Renders players in the current outing list with inline skill bars
+            // Renders players with inline skill bars (Same as V3)
             outingPlayerListDiv.innerHTML = '';
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
-
             const currentOuting = outings[activeOutingId];
-
             if (currentOuting.playerNames.length === 0) {
-                outingPlayerListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players added. Use the search bar above.</p>';
-                return;
+                outingPlayerListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players added.</p>'; return;
             }
-
             const playersInOuting = currentOuting.playerNames
-                .map(nameLower => allPlayers[nameLower])
-                .filter(player => player) // Filter out inconsistencies
+                .map(nameLower => allPlayers[nameLower]).filter(player => player)
                 .sort((a, b) => a.name.localeCompare(b.name));
-
             playersInOuting.forEach(player => {
-                    const playerElement = document.createElement('div');
-                    playerElement.classList.add('player-item', 'flex', 'justify-between', 'items-center', 'text-sm', 'p-1.5', 'rounded');
-
-                    // Player Name, Skill Text, and Inline Bar
-                    const nameSkillContainer = document.createElement('div');
-                    nameSkillContainer.className = 'flex items-center';
-
-                    const nameSpan = document.createElement('span');
-                    nameSpan.textContent = `${player.name} (Skill: ${player.skill})`;
-                    nameSkillContainer.appendChild(nameSpan);
-
-                    // Inline Skill Bar
-                    const barContainer = document.createElement('div');
-                    barContainer.className = 'inline-skill-bar-container tooltip-container'; // Add tooltip container class
-                    const bar = document.createElement('div');
-                    bar.className = 'inline-skill-bar';
-                    const skillPercentage = (player.skill / 10) * 100; // Max skill is 10
-                    bar.style.width = `${skillPercentage}%`;
-                    barContainer.appendChild(bar);
-
-                     // Tooltip for the bar
-                    const tooltip = document.createElement('span');
-                    tooltip.className = 'tooltiptext';
-                    tooltip.textContent = `Skill: ${player.skill}/10`;
-                    barContainer.appendChild(tooltip);
-
-
-                    nameSkillContainer.appendChild(barContainer);
-                    playerElement.appendChild(nameSkillContainer);
-
-                    // Remove Button
-                    const removeBtn = document.createElement('button');
-                    removeBtn.className = 'icon-btn delete-icon flex-shrink-0'; // Use icon class
-                    removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>`; // Simple X icon
-                    removeBtn.title = `Remove ${player.name} from this outing`;
-                    removeBtn.onclick = () => removePlayerFromOuting(player.name);
-                    playerElement.appendChild(removeBtn);
-
-                    outingPlayerListDiv.appendChild(playerElement);
+                const playerElement = document.createElement('div');
+                playerElement.className = 'player-item flex justify-between items-center text-sm p-1.5 rounded';
+                const nameSkillContainer = document.createElement('div');
+                nameSkillContainer.className = 'flex items-center';
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = `${player.name} (Skill: ${player.skill})`;
+                nameSkillContainer.appendChild(nameSpan);
+                const barContainer = document.createElement('div');
+                barContainer.className = 'inline-skill-bar-container tooltip-container';
+                const bar = document.createElement('div'); bar.className = 'inline-skill-bar';
+                bar.style.width = `${(player.skill / 10) * 100}%`;
+                barContainer.appendChild(bar);
+                const tooltip = document.createElement('span'); tooltip.className = 'tooltiptext';
+                tooltip.textContent = `Skill: ${player.skill}/10`; barContainer.appendChild(tooltip);
+                nameSkillContainer.appendChild(barContainer); playerElement.appendChild(nameSkillContainer);
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'icon-btn delete-icon flex-shrink-0';
+                removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>`;
+                removeBtn.title = `Remove ${player.name}`; removeBtn.onclick = () => removePlayerFromOuting(player.name);
+                playerElement.appendChild(removeBtn); outingPlayerListDiv.appendChild(playerElement);
             });
         }
 
-
-        // --- Player Database Management (New View Logic) ---
-
-        // Central function to add/update player in the database
+        // --- Player Database Management ---
         function addPlayerToDatabase(name, skill) {
-            const trimmedName = name.trim();
-            const nameLower = trimmedName.toLowerCase();
-
-            if (!trimmedName) {
-                showMessage("Player name cannot be empty.", "error");
-                return false; // Indicate failure
-            }
-             if (skill < 1 || skill > 10) {
-                  showMessage("Skill must be between 1 and 10.", "error");
-                  return false;
-             }
-
-            if (allPlayers[nameLower]) {
-                // Player exists, update skill (optional, decide if this is desired behavior)
-                // For now, let's prevent adding duplicates and require editing
-                showMessage(`Player "${trimmedName}" already exists. Edit skill in 'Manage Players' tab.`, "error");
-                 return false; // Or update: allPlayers[nameLower].skill = skill; showMessage('Skill updated', 'info'); return true;
-            } else {
-                // Add new player
-                allPlayers[nameLower] = { name: trimmedName, skill: parseInt(skill, 10) };
-                saveData();
-                showMessage(`Player "${trimmedName}" added to database.`, "info");
-                // If the management view is active, refresh its list
-                if (currentViewMode === 'playerManagement') {
-                    renderPlayerManagementView();
-                }
-                 // Clear the form in management view if it was used
-                mgmtPlayerNameInput.value = '';
-                mgmtPlayerSkillSlider.value = 5;
-                mgmtSkillValueSpan.textContent = '5';
-
-                return true; // Indicate success
-            }
+            // Central function - same logic as V3
+            const trimmedName = name.trim(); const nameLower = trimmedName.toLowerCase();
+            if (!trimmedName) { showMessage("Player name empty.", "error"); return false; }
+            if (skill < 1 || skill > 10) { showMessage("Skill must be 1-10.", "error"); return false; }
+            if (allPlayers[nameLower]) { showMessage(`Player "${trimmedName}" exists. Edit in 'Manage Players'.`, "error"); return false; }
+            allPlayers[nameLower] = { name: trimmedName, skill: parseInt(skill, 10) };
+            saveData(); showMessage(`Player "${trimmedName}" added.`, "info");
+            if (currentViewMode === 'playerManagement') { renderPlayerManagementView(); }
+            mgmtPlayerNameInput.value = ''; mgmtPlayerSkillSlider.value = 5; mgmtSkillValueSpan.textContent = '5';
+            return true;
         }
 
-
         function renderPlayerManagementView() {
-            allPlayersListDiv.innerHTML = ''; // Clear list
-            mgmtPlayerNameInput.value = ''; // Clear form
-            mgmtPlayerSkillSlider.value = 5;
-            mgmtSkillValueSpan.textContent = '5';
-
-
+            // Renders the list in the management tab (Same as V3, but calls openEditModal)
+            allPlayersListDiv.innerHTML = ''; mgmtPlayerNameInput.value = '';
+            mgmtPlayerSkillSlider.value = 5; mgmtSkillValueSpan.textContent = '5';
             const sortedPlayers = Object.values(allPlayers).sort((a, b) => a.name.localeCompare(b.name));
-
-            if (sortedPlayers.length === 0) {
-                allPlayersListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players in the database yet. Add one using the form.</p>';
-                return;
-            }
-
+            if (sortedPlayers.length === 0) { allPlayersListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players yet.</p>'; return; }
             sortedPlayers.forEach(player => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'mgmt-player-item'; // Use specific class for styling
-
-                // Player Info (Name and Skill)
-                const infoSpan = document.createElement('span');
-                infoSpan.textContent = `${player.name} (Skill: ${player.skill})`;
-                itemDiv.appendChild(infoSpan);
-
-                // Action Buttons (Edit, Delete)
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'flex items-center space-x-2 flex-shrink-0'; // Ensure buttons don't wrap easily
-
-                // Edit Button
-                const editBtn = document.createElement('button');
-                editBtn.className = 'icon-btn edit-icon';
-                editBtn.title = `Edit ${player.name}'s skill`;
+                const itemDiv = document.createElement('div'); itemDiv.className = 'mgmt-player-item';
+                const infoSpan = document.createElement('span'); infoSpan.textContent = `${player.name} (Skill: ${player.skill})`; itemDiv.appendChild(infoSpan);
+                const actionsDiv = document.createElement('div'); actionsDiv.className = 'flex items-center space-x-2 flex-shrink-0';
+                const editBtn = document.createElement('button'); editBtn.className = 'icon-btn edit-icon'; editBtn.title = `Edit ${player.name}`;
                 editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>`;
-                editBtn.onclick = () => editPlayerSkillFromMgmt(player.name);
+                editBtn.onclick = () => openEditModal(player.name); // Open modal instead of prompt
                 actionsDiv.appendChild(editBtn);
-
-                // Delete Button
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'icon-btn delete-icon';
-                deleteBtn.title = `Delete ${player.name} from database`;
+                const deleteBtn = document.createElement('button'); deleteBtn.className = 'icon-btn delete-icon'; deleteBtn.title = `Delete ${player.name}`;
                 deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>`;
                 deleteBtn.onclick = () => deletePlayerFromDatabase(player.name);
-                actionsDiv.appendChild(deleteBtn);
-
-                itemDiv.appendChild(actionsDiv);
-                allPlayersListDiv.appendChild(itemDiv);
+                actionsDiv.appendChild(deleteBtn); itemDiv.appendChild(actionsDiv); allPlayersListDiv.appendChild(itemDiv);
             });
         }
 
         function handleAddPlayerFromMgmt() {
+            // Same as V3
             const name = mgmtPlayerNameInput.value;
             const skill = parseInt(mgmtPlayerSkillSlider.value, 10);
-            addPlayerToDatabase(name, skill); // This function handles saving and UI refresh
+            addPlayerToDatabase(name, skill);
         }
 
-        function editPlayerSkillFromMgmt(playerName) {
-            const playerNameLower = playerName.toLowerCase();
-            const player = allPlayers[playerNameLower];
+        // --- Edit Player Modal Logic ---
+        function openEditModal(playerName) {
+            const player = allPlayers[playerName.toLowerCase()];
             if (!player) return;
+            editPlayerOriginalNameInput.value = player.name; // Store original case name
+            editPlayerNameInput.value = player.name;
+            editPlayerSkillSlider.value = player.skill;
+            editSkillValueSpan.textContent = player.skill;
+            editPlayerModal.classList.add('visible');
+        }
 
-            const newSkill = prompt(`Enter new skill (1-10) for ${player.name}:`, player.skill);
-            const parsedSkill = parseInt(newSkill, 10);
+        function closeEditModal() {
+            editPlayerModal.classList.remove('visible');
+        }
 
-            if (newSkill !== null && !isNaN(parsedSkill) && parsedSkill >= 1 && parsedSkill <= 10) {
-                if (parsedSkill !== player.skill) {
-                    player.skill = parsedSkill;
-                    allPlayers[playerNameLower] = player; // Update object
-                    saveData();
-                    showMessage(`Skill updated for ${player.name}.`, "info");
-                    renderPlayerManagementView(); // Refresh the management list
-                    // Also refresh the current outing list if the player is in it
-                    if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId].playerNames.includes(playerNameLower)) {
-                        updateOutingPlayerList();
-                        generateAndDisplayGroups(); // Regenerate groups as skill changed
+        function handleSaveEditPlayer() {
+            const originalName = editPlayerOriginalNameInput.value;
+            const originalNameLower = originalName.toLowerCase();
+            const newName = editPlayerNameInput.value.trim();
+            const newNameLower = newName.toLowerCase();
+            const newSkill = parseInt(editPlayerSkillSlider.value, 10);
+
+            if (!newName) { showMessage("Player name cannot be empty.", "error"); return; }
+            if (newSkill < 1 || newSkill > 10) { showMessage("Skill must be 1-10.", "error"); return; }
+
+            // Check if name is being changed to an existing different player
+            if (newNameLower !== originalNameLower && allPlayers[newNameLower]) {
+                showMessage(`Another player named "${newName}" already exists.`, "error");
+                return;
+            }
+
+            // Proceed with update
+            const playerToUpdate = allPlayers[originalNameLower];
+            if (!playerToUpdate) { showMessage("Original player not found!", "error"); return; } // Should not happen
+
+            // Update skill first
+            playerToUpdate.skill = newSkill;
+
+            // Handle name change
+            if (newNameLower !== originalNameLower) {
+                playerToUpdate.name = newName; // Update display name
+                allPlayers[newNameLower] = playerToUpdate; // Add new key
+                delete allPlayers[originalNameLower]; // Delete old key
+
+                // Update name in all outings
+                Object.values(outings).forEach(outing => {
+                    const index = outing.playerNames.indexOf(originalNameLower);
+                    if (index > -1) {
+                        outing.playerNames[index] = newNameLower;
                     }
-                }
-            } else if (newSkill !== null) { // User didn't cancel, but entered invalid input
-                showMessage("Invalid skill level. Please enter a number between 1 and 10.", "error");
+                });
+                 showMessage(`Player "${originalName}" renamed to "${newName}" and skill updated.`, "info");
+            } else {
+                // Name didn't change, just update skill (already done)
+                 showMessage(`Skill updated for ${newName}.`, "info");
+            }
+
+            saveData();
+            closeEditModal();
+            renderPlayerManagementView(); // Refresh management list
+
+            // Refresh outing view if it's active and the player was in it
+            if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId].playerNames.includes(newNameLower)) {
+                 updateOutingViewUI(); // This will re-render player list and groups
+            } else if (currentViewMode === 'outing' && activeOutingId && newNameLower !== originalNameLower) {
+                 // If name changed and player *was* in the active outing under the old name, refresh too
+                 // Check if the *new* name is now in the list (it should be after the update loop above)
+                 if (outings[activeOutingId].playerNames.includes(newNameLower)) {
+                     updateOutingViewUI();
+                 }
             }
         }
 
+
         function deletePlayerFromDatabase(playerName) {
+            // Same logic as V3
             const playerNameLower = playerName.toLowerCase();
             const player = allPlayers[playerNameLower];
             if (!player) return;
-
-            if (confirm(`⚠️ Are you sure you want to DELETE "${player.name}" from the database?\n\nThis action cannot be undone and will remove the player from ALL outings.`)) {
-                // 1. Remove from central database
+            if (confirm(`⚠️ DELETE "${player.name}" from database?\n\nRemoves player from ALL outings. Cannot be undone.`)) {
                 delete allPlayers[playerNameLower];
-
-                // 2. Remove from all outings
                 Object.keys(outings).forEach(outingId => {
                     outings[outingId].playerNames = outings[outingId].playerNames.filter(name => name !== playerNameLower);
-                    // If the current outing view is active, regenerate its groups
-                    if (currentViewMode === 'outing' && activeOutingId === outingId) {
-                        outings[outingId].groups = []; // Clear groups as player list changed significantly
-                    }
+                    if (currentViewMode === 'outing' && activeOutingId === outingId) { outings[outingId].groups = []; }
                 });
-
-                saveData();
-                showMessage(`Player "${player.name}" deleted from database and all outings.`, "info");
-
-                // Refresh the current view
-                if (currentViewMode === 'playerManagement') {
-                    renderPlayerManagementView();
-                } else if (currentViewMode === 'outing' && activeOutingId) {
-                    updateOutingViewUI(); // Refresh outing view completely
-                }
+                saveData(); showMessage(`Player "${player.name}" deleted.`, "info");
+                if (currentViewMode === 'playerManagement') { renderPlayerManagementView(); }
+                else if (currentViewMode === 'outing' && activeOutingId) { updateOutingViewUI(); }
             }
         }
 
         // --- Group Generation & Display ---
-        function generateGroups() {
-            // Core logic remains the same, but ensure players are fetched correctly
+        function generateGroups(useRandomness = false) {
+            // Core logic + optional shuffle + fun names
             clearMessage();
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) {
-                 showMessage("Cannot generate groups without an active outing selected.", "error");
+                 // Only show error if manually triggered? Maybe not needed for auto-updates.
+                 // showMessage("Cannot generate groups without an active outing selected.", "error");
                  return [];
              }
 
             const currentOuting = outings[activeOutingId];
             const playerNames = currentOuting.playerNames;
-            let numGroups = currentOuting.numberOfGroups;
+            let numGroups = parseInt(numGroupsInput.value, 10); // Get from number input
 
-            const players = playerNames
-                .map(nameLower => allPlayers[nameLower])
-                .filter(player => player); // Fetch full player objects
-
-            if (players.length === 0) {
-                // showMessage("Add players to the outing before generating groups.");
-                 currentOuting.groups = []; saveData(); return [];
-            }
-             if (numGroups <= 0) {
-                  // showMessage("Number of groups must be at least 1.");
-                  currentOuting.groups = []; saveData(); return [];
+             // Validate numGroups from input
+             if (isNaN(numGroups) || numGroups < 1) {
+                 numGroups = 1;
+                 numGroupsInput.value = 1; // Correct input visually
              }
+             // Max validation handled by input attributes, but double-check
+             numGroups = Math.min(numGroups, 10);
+             numGroupsInput.value = numGroups; // Ensure input reflects validated value
+
+
+             // Fetch full player objects
+             let players = playerNames.map(nameLower => allPlayers[nameLower]).filter(player => player);
+
+            if (players.length === 0) { currentOuting.groups = []; saveData(); return []; }
+
+             // Adjust numGroups if needed (more groups than players)
              if (numGroups > players.length) {
-                 showMessage(`Adjusting groups to match number of players (${players.length}).`, 'info');
+                 // Don't show message on auto-update, only if manually triggered?
+                 if (useRandomness) showMessage(`Adjusting groups to match players (${players.length}).`, 'info');
                  numGroups = players.length;
-                 currentOuting.numberOfGroups = numGroups;
-                 numGroupsSlider.value = numGroups;
-                 groupsValueSpan.textContent = numGroups;
+                 numGroupsInput.value = numGroups; // Update input visually
+             }
+             currentOuting.numberOfGroups = numGroups; // Store the validated/adjusted number
+
+             // --- Randomization Step ---
+             if (useRandomness) {
+                 // Shuffle the players array before sorting by skill
+                 players.sort(() => Math.random() - 0.5);
              }
 
-            const sortedPlayers = [...players].sort((a, b) => b.skill - a.skill);
-            const groups = Array.from({ length: numGroups }, (_, i) => ({ id: i + 1, players: [], totalSkill: 0 }));
+             // Sort by skill (desc) for balanced distribution (shuffling provides tie-breaking)
+             const sortedPlayers = players.sort((a, b) => b.skill - a.skill);
 
-            sortedPlayers.forEach(player => {
-                groups.sort((a, b) => a.totalSkill - b.totalSkill);
-                groups[0].players.push(player);
-                groups[0].totalSkill += player.skill;
-            });
+             // Initialize groups
+             const groups = Array.from({ length: numGroups }, (_, i) => ({
+                 id: i + 1,
+                 name: GOLF_GROUP_NAMES[i % GOLF_GROUP_NAMES.length], // Assign fun name
+                 players: [],
+                 totalSkill: 0
+             }));
 
-            currentOuting.groups = groups;
-            saveData();
-            return groups;
+             // Distribute players greedily
+             sortedPlayers.forEach(player => {
+                 groups.sort((a, b) => a.totalSkill - b.totalSkill); // Find group with lowest skill sum
+                 groups[0].players.push(player);
+                 groups[0].totalSkill += player.skill;
+             });
+
+             currentOuting.groups = groups;
+             saveData(); // Save the generated groups
+             return groups;
         }
 
         function displayGroups(groups) {
-            // Updated to include total skill bar visualization
+            // Updated to use fun group names and total skill bar
             groupDisplayDiv.innerHTML = '';
 
             if (!groups || groups.length === 0) {
+                 // Same placeholder logic as V3
                  if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId] && outings[activeOutingId].playerNames.length > 0) {
-                     groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Click "Generate / Shake Up Groups" to create groups.</p>';
+                     groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Groups will appear here after adding players.</p>';
                  } else if (currentViewMode === 'outing') {
                       groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Add players to this outing first.</p>';
-                 } else {
-                      groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Select an outing or manage players.</p>';
-                 }
+                 } else { /* Player mgmt view */ }
                 return;
             }
 
-            // Find max total skill for scaling bars (or use a fixed reasonable max)
-             let maxTotalSkill = 0;
-             groups.forEach(group => {
-                 if (group.totalSkill > maxTotalSkill) maxTotalSkill = group.totalSkill;
-             });
-             // Use a minimum max skill to prevent tiny bars for low-skill groups
-             const scaleMax = Math.max(maxTotalSkill, 10 * (groups[0]?.players?.length || 1)); // Estimate based on max possible skill
-
+            let maxTotalSkill = 0; groups.forEach(group => { if (group.totalSkill > maxTotalSkill) maxTotalSkill = group.totalSkill; });
+            const scaleMax = Math.max(maxTotalSkill, 10); // Ensure scale isn't zero
 
             groups.sort((a, b) => a.id - b.id).forEach(group => {
                 const groupCard = document.createElement('div');
-                groupCard.classList.add('group-card', 'bg-white', 'p-4', 'rounded-lg', 'border', 'border-gray-200', 'shadow-sm', 'flex', 'flex-col'); // Flex column
-
+                groupCard.className = 'group-card bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col';
                 const avgSkill = group.players.length > 0 ? (group.totalSkill / group.players.length).toFixed(1) : 'N/A';
+                let playerListHTML = group.players.map(p => `<li class="text-sm text-gray-600">${p.name} (${p.skill})</li>`).join('');
+                if (!playerListHTML) playerListHTML = '<li class="text-sm text-gray-400 italic">Empty</li>';
 
-                let playerListHTML = group.players
-                    .map(p => `<li class="text-sm text-gray-600">${p.name} (Skill: ${p.skill})</li>`)
-                    .join('');
-                 if (!playerListHTML) playerListHTML = '<li class="text-sm text-gray-400 italic">Empty</li>';
-
-                // Group Info Div
                 const infoDiv = document.createElement('div');
+                // Use fun group name
                 infoDiv.innerHTML = `
-                    <h3 class="text-md font-semibold text-blue-700 mb-1">Group ${group.id}</h3>
-                    <p class="text-sm text-gray-500 mb-2">Avg Skill: ${avgSkill} | Total Skill: ${group.totalSkill}</p>
-                    <ul class="space-y-1 list-disc list-inside mb-3">
-                        ${playerListHTML}
-                    </ul>
-                `;
+                    <h3 class="text-md font-semibold text-blue-700 mb-1">${group.name || `Group ${group.id}`}</h3>
+                    <p class="text-sm text-gray-500 mb-2">Avg Skill: ${avgSkill} | Total: ${group.totalSkill}</p>
+                    <ul class="space-y-1 list-disc list-inside mb-3">${playerListHTML}</ul>`;
                 groupCard.appendChild(infoDiv);
 
-                // Skill Bar Div (at the bottom)
-                const skillBarDiv = document.createElement('div');
-                skillBarDiv.className = 'mt-auto'; // Push to bottom
-
-                const barContainer = document.createElement('div');
-                barContainer.className = 'group-skill-bar-container tooltip-container';
-
-                const bar = document.createElement('div');
-                bar.className = 'group-skill-bar';
+                const skillBarDiv = document.createElement('div'); skillBarDiv.className = 'mt-auto';
+                const barContainer = document.createElement('div'); barContainer.className = 'group-skill-bar-container tooltip-container';
+                const bar = document.createElement('div'); bar.className = 'group-skill-bar';
                 const barWidth = scaleMax > 0 ? (group.totalSkill / scaleMax) * 100 : 0;
-                bar.style.width = `${Math.min(barWidth, 100)}%`; // Cap at 100%
-                // bar.textContent = group.totalSkill; // Show total skill number on bar
-
+                bar.style.width = `${Math.min(barWidth, 100)}%`;
                 barContainer.appendChild(bar);
-
-                 // Tooltip for the bar
-                const tooltip = document.createElement('span');
-                tooltip.className = 'tooltiptext';
-                tooltip.textContent = `Total Skill: ${group.totalSkill}`;
-                barContainer.appendChild(tooltip);
-
-
-                skillBarDiv.appendChild(barContainer);
-                groupCard.appendChild(skillBarDiv);
-
+                const tooltip = document.createElement('span'); tooltip.className = 'tooltiptext';
+                tooltip.textContent = `Total Skill: ${group.totalSkill}`; barContainer.appendChild(tooltip);
+                skillBarDiv.appendChild(barContainer); groupCard.appendChild(skillBarDiv);
                 groupDisplayDiv.appendChild(groupCard);
             });
         }
 
-        function generateAndDisplayGroups() {
-            const generatedGroups = generateGroups();
+        function generateAndDisplayGroups(useRandomness = false) {
+            const generatedGroups = generateGroups(useRandomness);
             displayGroups(generatedGroups);
         }
 
         // --- UI Update Trigger ---
         function updateOutingViewUI() {
-            // Updates all relevant parts of the outing view UI
+            // Updates outing view: player list, group input, groups display
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
              const currentOuting = outings[activeOutingId];
-
-            updateOutingPlayerList();
-
-            numGroupsSlider.value = currentOuting.numberOfGroups;
-            groupsValueSpan.textContent = currentOuting.numberOfGroups;
-            numGroupsSlider.max = Math.max(1, currentOuting.playerNames.length || 1);
-
-            displayGroups(currentOuting.groups); // Display stored/generated groups
+             updateOutingPlayerList();
+             numGroupsInput.value = currentOuting.numberOfGroups;
+             // Update max for number input dynamically based on players
+             numGroupsInput.max = Math.max(1, currentOuting.playerNames.length || 1);
+             displayGroups(currentOuting.groups); // Display stored groups
         }
 
         // --- Utility Functions ---
-        function showMessage(message, type = 'info') { // Default to info
-            messageArea.textContent = message;
-            messageArea.className = `mt-6 text-center font-medium ${
-                type === 'error' ? 'text-red-600' :
-                type === 'success' ? 'text-green-600' :
-                'text-blue-600' // Default info
-            }`;
-            // Auto-clear non-error messages
-            if (type !== 'error') {
-                setTimeout(clearMessage, 3500);
-            }
-        }
+        function showMessage(message, type = 'info') { /* Same as V3 */ showMessageV3(message, type); }
         function clearMessage() { messageArea.textContent = ''; messageArea.className = 'mt-6 text-center font-medium'; }
+        function showMessageV3(message, type = 'info'){ // Replicated V3
+             messageArea.textContent = message;
+             messageArea.className = `mt-6 text-center font-medium ${ type === 'error' ? 'text-red-600' : type === 'success' ? 'text-green-600' : 'text-blue-600' }`;
+             if (type !== 'error') { setTimeout(clearMessage, 3500); }
+        }
 
         // --- Event Listeners Setup ---
         function setupEventListeners() {
@@ -929,45 +776,53 @@
 
             // Outing View: Player Search & Add
             playerSearchInput.addEventListener('input', handlePlayerSearch);
-            document.addEventListener('click', (event) => { // Hide search results on outside click
+            document.addEventListener('click', (event) => {
                 if (!playerSearchInput.contains(event.target) && !searchResultsDiv.contains(event.target)) {
-                    hideSearchResults();
-                     if (!playerSearchInput.value.trim()) hideAddNewPlayerSection();
+                    hideSearchResults(); if (!playerSearchInput.value.trim()) hideAddNewPlayerSection();
                 }
             });
             newPlayerSkillSlider.addEventListener('input', () => { newSkillValueSpan.textContent = newPlayerSkillSlider.value; });
             addNewPlayerBtn.addEventListener('click', addNewPlayerFromOutingView);
 
             // Outing View: Group Config
-            numGroupsSlider.addEventListener('input', () => {
-                groupsValueSpan.textContent = numGroupsSlider.value;
+            numGroupsInput.addEventListener('change', () => { // Use 'change' for number input
                  if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId]) {
-                    outings[activeOutingId].numberOfGroups = parseInt(numGroupsSlider.value, 10);
-                    saveData(); // Save setting, but don't regen yet
+                     let groupsVal = parseInt(numGroupsInput.value, 10);
+                     // Re-validate on change
+                     groupsVal = Math.max(1, Math.min(groupsVal, parseInt(numGroupsInput.max, 10) || 10));
+                     numGroupsInput.value = groupsVal; // Update input if corrected
+                     outings[activeOutingId].numberOfGroups = groupsVal;
+                     // Auto-generate groups on change
+                     generateAndDisplayGroups(false); // No shuffle for auto-update
                  }
             });
-            shakeUpBtn.addEventListener('click', generateAndDisplayGroups);
+            recalculateBtn.addEventListener('click', () => generateAndDisplayGroups(true)); // Use randomness on button click
 
             // Player Management View: Add Player
             mgmtPlayerSkillSlider.addEventListener('input', () => { mgmtSkillValueSpan.textContent = mgmtPlayerSkillSlider.value; });
             mgmtAddPlayerBtn.addEventListener('click', handleAddPlayerFromMgmt);
-             mgmtPlayerNameInput.addEventListener('keypress', (event) => {
-                 if (event.key === 'Enter') {
-                     handleAddPlayerFromMgmt();
+            mgmtPlayerNameInput.addEventListener('keypress', (event) => { if (event.key === 'Enter') { handleAddPlayerFromMgmt(); } });
+
+            // Edit Player Modal
+            cancelEditPlayerBtn.addEventListener('click', closeEditModal);
+            saveEditPlayerBtn.addEventListener('click', handleSaveEditPlayer);
+            editPlayerSkillSlider.addEventListener('input', () => { editSkillValueSpan.textContent = editPlayerSkillSlider.value; });
+             // Close modal if clicking outside the content
+             editPlayerModal.addEventListener('click', (event) => {
+                 if (event.target === editPlayerModal) { // Check if click was on the overlay itself
+                     closeEditModal();
                  }
              });
         }
 
-        // Make functions called by inline handlers globally accessible
-        // (Though it's better practice to attach listeners directly in JS)
-        window.removePlayerFromOuting = removePlayerFromOuting; // Used in updateOutingPlayerList
-        window.editPlayerSkillFromMgmt = editPlayerSkillFromMgmt; // Used in renderPlayerManagementView
-        window.deletePlayerFromDatabase = deletePlayerFromDatabase; // Used in renderPlayerManagementView
-        window.editOutingName = editOutingName; // Called from renderTabs
+        // Make functions globally accessible for inline handlers (if any remain - best practice is to avoid)
+        window.removePlayerFromOuting = removePlayerFromOuting;
+        window.openEditModal = openEditModal; // Called from renderPlayerManagementView
+        window.deletePlayerFromDatabase = deletePlayerFromDatabase;
+        window.editOutingName = editOutingName;
 
         // --- Start the application ---
         document.addEventListener('DOMContentLoaded', initializeApp);
-
     </script>
 
 </body>
