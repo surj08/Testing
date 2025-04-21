@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23FFFFFF'%3E%3Crect width='100' height='100' fill='%234CAF50'/%3E%3C!-- Outer Ring --%3E%3Ccircle cx='50' cy='50' r='30' stroke='%23FFFFFF' stroke-width='4' fill='none'/%3E%3C!-- Golf Ball --%3E%3Ccircle cx='50' cy='35' r='12' fill='%23FFFFFF'/%3E%3C!-- Dimples (simplified) --%3E%3Ccircle cx='45' cy='30' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='55' cy='30' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='50' cy='26' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='43' cy='35' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='57' cy='35' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='47' cy='40' r='1.5' fill='%23CCCCCC'/%3E%3Ccircle cx='53' cy='40' r='1.5' fill='%23CCCCCC'/%3E%3C!-- Tee --%3E%3Cpath d='M47 47 L 47 60 Q 47 63 50 63 Q 53 63 53 60 L 53 47 Z' fill='%23FFFFFF'/%3E%3C!-- Grass --%3E%3Cpath d='M40 63 C 42 60, 45 58, 50 58 S 58 60, 60 63 Z' fill='%23FFFFFF'/%3E%3Cpath d='M42 65 C 44 62, 47 60, 50 60 S 56 62, 58 65 Z' fill='%23FFFFFF' opacity='0.7'/%3E%3C!-- Ground line --%3E%3Cellipse cx='50' cy='64' rx='15' ry='3' fill='%23FFFFFF'/%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles (mostly same as V3) */
+        /* Custom styles (mostly same as V3/V4) */
         body { font-family: 'Inter', sans-serif; }
         .tab.active { border-bottom-color: #3b82f6; font-weight: 600; color: #3b82f6; }
         .tab-manage-players { border-bottom-color: #6b7280; color: #1f2937; }
@@ -114,11 +114,14 @@
                                  <button id="add-new-player-btn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">Add New Player to Database</button>
                              </div>
                          </div>
+
                          <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
                              <h2 class="text-lg font-semibold text-gray-700 mb-3">Players in this Outing</h2>
-                             <div id="outing-player-list" class="mt-2 max-h-60 overflow-y-auto space-y-1 pr-2"></div>
+                             <div id="outing-player-list" class="mt-2 max-h-60 overflow-y-auto space-y-1 pr-2">
+                                 </div>
                          </div>
                      </div>
+
                      <div class="md:col-span-2 space-y-6">
                          <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
                              <h2 class="text-lg font-semibold text-gray-700 mb-3">Configure Groups</h2>
@@ -127,14 +130,16 @@
                                       <label for="num-groups" class="block text-sm font-medium text-gray-700">Number of Groups:</label>
                                      <input type="number" id="num-groups" min="1" max="10" step="1" value="3" class="shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                                  </div>
-                                  <button id="recalculate-btn" class="mt-2 md:mt-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
+                                 <button id="recalculate-btn" class="mt-2 md:mt-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
                                      Recalculate Groups
                                  </button>
                               </div>
                          </div>
+
                          <div>
                              <h2 class="text-lg font-semibold text-gray-700 mb-3">Generated Groups</h2>
-                             <div id="group-display" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                             <div id="group-display" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                 </div>
                          </div>
                      </div>
                  </div>
@@ -157,7 +162,8 @@
                       </div>
                       <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
                           <h3 class="text-lg font-semibold text-gray-700 mb-3">All Players</h3>
-                          <div id="all-players-list" class="max-h-96 overflow-y-auto space-y-1 pr-2"></div>
+                          <div id="all-players-list" class="max-h-96 overflow-y-auto space-y-1 pr-2">
+                              </div>
                       </div>
                   </div>
             </div> <div id="message-area" class="mt-6 text-center font-medium"></div>
@@ -199,7 +205,6 @@
         const addNewPlayerBtn = document.getElementById('add-new-player-btn');
         const outingPlayerListDiv = document.getElementById('outing-player-list');
         const numGroupsInput = document.getElementById('num-groups'); // Changed from slider
-        // const groupsValueSpan = document.getElementById('groups-value'); // Removed span
         const recalculateBtn = document.getElementById('recalculate-btn'); // Renamed from shakeUpBtn
         const groupDisplayDiv = document.getElementById('group-display');
         // Player Management View Elements
@@ -318,7 +323,7 @@
         }
 
         function renderTabs() {
-            // Same rendering logic as V3, including edit/delete buttons
+            // Same rendering logic as V3/V4, including edit/delete buttons
             tabsContainer.querySelectorAll('.outing-tab').forEach(tab => tab.remove());
             Object.keys(outings).sort((a, b) => outings[a].name.localeCompare(outings[b].name)).forEach(outingId => {
                 const outing = outings[outingId];
@@ -339,13 +344,15 @@
                 deleteBtn.onclick = (event) => { event.stopPropagation(); if (confirm(`Delete outing "${outing.name}"?`)) { deleteOuting(outingId); } };
                 tabButton.appendChild(deleteBtn);
                 tabButton.addEventListener('click', () => setActiveView(outingId));
+                // Insert before the "Add" button
                 tabsContainer.insertBefore(tabButton, addOutingBtn);
             });
             highlightActiveTab(currentViewMode === 'playerManagement' ? PLAYER_MGMT_VIEW_ID : activeOutingId);
         }
 
+
         function createNewOuting() {
-            // Same as V3
+            // Same as V3/V4
             const newOutingId = `outing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
             const newOutingName = `Outing ${nextOutingIndex++}`;
             outings[newOutingId] = { name: newOutingName, playerNames: [], numberOfGroups: 3, groups: [] }; // Default groups = 3
@@ -355,7 +362,7 @@
         }
 
         function editOutingName(outingId) {
-            // Same as V3
+            // Same as V3/V4
              if (!outings[outingId]) return;
              const currentName = outings[outingId].name;
              const newName = prompt(`Enter new name for outing "${currentName}":`, currentName);
@@ -367,7 +374,7 @@
          }
 
         function deleteOuting(outingIdToDelete) {
-            // Same as V3
+            // Same as V3/V4
             if (!outings[outingIdToDelete]) return;
             delete outings[outingIdToDelete];
             if (activeOutingId === outingIdToDelete) {
@@ -383,15 +390,15 @@
         }
 
         // --- Player Search and Add (Outing View) ---
-        function handlePlayerSearch() { /* Same as V3 */ handlePlayerSearchV3(); }
-        function selectPlayerFromSearch(playerName) { /* Same as V3 */ selectPlayerFromSearchV3(playerName); }
+        function handlePlayerSearch() { /* Same as V3/V4 */ handlePlayerSearchV3(); }
+        function selectPlayerFromSearch(playerName) { /* Same as V3/V4 */ selectPlayerFromSearchV3(playerName); }
         function showSearchResults() { searchResultsDiv.classList.remove('hidden'); }
         function hideSearchResults() { searchResultsDiv.classList.add('hidden'); searchResultsDiv.innerHTML = ''; }
-        function showAddNewPlayerSection(nameAttempt) { /* Same as V3 */ showAddNewPlayerSectionV3(nameAttempt); }
+        function showAddNewPlayerSection(nameAttempt) { /* Same as V3/V4 */ showAddNewPlayerSectionV3(nameAttempt); }
         function hideAddNewPlayerSection() { addNewPlayerSection.classList.add('hidden'); }
-        function addNewPlayerFromOutingView() { /* Same as V3 */ addNewPlayerFromOutingViewV3(); }
+        function addNewPlayerFromOutingView() { /* Same as V3/V4 */ addNewPlayerFromOutingViewV3(); }
 
-        // --- Replicated V3 functions for brevity ---
+        // --- Replicated V3/V4 functions for brevity ---
         function handlePlayerSearchV3() {
             const searchTerm = playerSearchInput.value.trim().toLowerCase();
             searchResultsDiv.innerHTML = ''; hideAddNewPlayerSection();
@@ -427,8 +434,7 @@
                 hideAddNewPlayerSection(); playerSearchInput.focus();
             }
         }
-        // --- End Replicated V3 functions ---
-
+        // --- End Replicated V3/V4 functions ---
 
         // --- Outing Player Management ---
          function addPlayerToCurrentOuting(playerName) {
@@ -463,7 +469,7 @@
         }
 
         function updateOutingPlayerList() {
-            // Renders players with inline skill bars (Same as V3)
+            // Renders players with inline skill bars (Same as V3/V4)
             outingPlayerListDiv.innerHTML = '';
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
             const currentOuting = outings[activeOutingId];
@@ -499,7 +505,7 @@
 
         // --- Player Database Management ---
         function addPlayerToDatabase(name, skill) {
-            // Central function - same logic as V3
+            // Central function - same logic as V3/V4
             const trimmedName = name.trim(); const nameLower = trimmedName.toLowerCase();
             if (!trimmedName) { showMessage("Player name empty.", "error"); return false; }
             if (skill < 1 || skill > 10) { showMessage("Skill must be 1-10.", "error"); return false; }
@@ -512,7 +518,7 @@
         }
 
         function renderPlayerManagementView() {
-            // Renders the list in the management tab (Same as V3, but calls openEditModal)
+            // Renders the list in the management tab (Same as V3/V4, but calls openEditModal)
             allPlayersListDiv.innerHTML = ''; mgmtPlayerNameInput.value = '';
             mgmtPlayerSkillSlider.value = 5; mgmtSkillValueSpan.textContent = '5';
             const sortedPlayers = Object.values(allPlayers).sort((a, b) => a.name.localeCompare(b.name));
@@ -533,7 +539,7 @@
         }
 
         function handleAddPlayerFromMgmt() {
-            // Same as V3
+            // Same as V3/V4
             const name = mgmtPlayerNameInput.value;
             const skill = parseInt(mgmtPlayerSkillSlider.value, 10);
             addPlayerToDatabase(name, skill);
@@ -555,6 +561,7 @@
         }
 
         function handleSaveEditPlayer() {
+            // Same logic as V4 - handles name change correctly
             const originalName = editPlayerOriginalNameInput.value;
             const originalNameLower = originalName.toLowerCase();
             const newName = editPlayerNameInput.value.trim();
@@ -564,48 +571,35 @@
             if (!newName) { showMessage("Player name cannot be empty.", "error"); return; }
             if (newSkill < 1 || newSkill > 10) { showMessage("Skill must be 1-10.", "error"); return; }
 
-            // Check if name is being changed to an existing different player
             if (newNameLower !== originalNameLower && allPlayers[newNameLower]) {
-                showMessage(`Another player named "${newName}" already exists.`, "error");
-                return;
+                showMessage(`Another player named "${newName}" already exists.`, "error"); return;
             }
 
-            // Proceed with update
             const playerToUpdate = allPlayers[originalNameLower];
-            if (!playerToUpdate) { showMessage("Original player not found!", "error"); return; } // Should not happen
+            if (!playerToUpdate) { showMessage("Original player not found!", "error"); return; }
 
-            // Update skill first
             playerToUpdate.skill = newSkill;
 
-            // Handle name change
             if (newNameLower !== originalNameLower) {
-                playerToUpdate.name = newName; // Update display name
-                allPlayers[newNameLower] = playerToUpdate; // Add new key
-                delete allPlayers[originalNameLower]; // Delete old key
-
-                // Update name in all outings
+                playerToUpdate.name = newName;
+                allPlayers[newNameLower] = playerToUpdate;
+                delete allPlayers[originalNameLower];
                 Object.values(outings).forEach(outing => {
                     const index = outing.playerNames.indexOf(originalNameLower);
-                    if (index > -1) {
-                        outing.playerNames[index] = newNameLower;
-                    }
+                    if (index > -1) { outing.playerNames[index] = newNameLower; }
                 });
                  showMessage(`Player "${originalName}" renamed to "${newName}" and skill updated.`, "info");
             } else {
-                // Name didn't change, just update skill (already done)
                  showMessage(`Skill updated for ${newName}.`, "info");
             }
 
             saveData();
             closeEditModal();
-            renderPlayerManagementView(); // Refresh management list
+            renderPlayerManagementView();
 
-            // Refresh outing view if it's active and the player was in it
             if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId].playerNames.includes(newNameLower)) {
-                 updateOutingViewUI(); // This will re-render player list and groups
+                 updateOutingViewUI();
             } else if (currentViewMode === 'outing' && activeOutingId && newNameLower !== originalNameLower) {
-                 // If name changed and player *was* in the active outing under the old name, refresh too
-                 // Check if the *new* name is now in the list (it should be after the update loop above)
                  if (outings[activeOutingId].playerNames.includes(newNameLower)) {
                      updateOutingViewUI();
                  }
@@ -614,7 +608,7 @@
 
 
         function deletePlayerFromDatabase(playerName) {
-            // Same logic as V3
+            // Same logic as V3/V4
             const playerNameLower = playerName.toLowerCase();
             const player = allPlayers[playerNameLower];
             if (!player) return;
@@ -622,51 +616,55 @@
                 delete allPlayers[playerNameLower];
                 Object.keys(outings).forEach(outingId => {
                     outings[outingId].playerNames = outings[outingId].playerNames.filter(name => name !== playerNameLower);
-                    if (currentViewMode === 'outing' && activeOutingId === outingId) { outings[outingId].groups = []; }
+                    // Also clear groups if player removed from active outing
+                    if (currentViewMode === 'outing' && activeOutingId === outingId) {
+                         outings[outingId].groups = []; // Clear groups as roster changed
+                         generateAndDisplayGroups(false); // Regenerate immediately
+                    }
                 });
                 saveData(); showMessage(`Player "${player.name}" deleted.`, "info");
                 if (currentViewMode === 'playerManagement') { renderPlayerManagementView(); }
-                else if (currentViewMode === 'outing' && activeOutingId) { updateOutingViewUI(); }
+                else if (currentViewMode === 'outing' && activeOutingId) { updateOutingViewUI(); } // Refresh view if active
             }
         }
 
         // --- Group Generation & Display ---
         function generateGroups(useRandomness = false) {
-            // Core logic + optional shuffle + fun names
+            // ** THIS FUNCTION IS CORRECTED **
             clearMessage();
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) {
-                 // Only show error if manually triggered? Maybe not needed for auto-updates.
-                 // showMessage("Cannot generate groups without an active outing selected.", "error");
-                 return [];
+                 return []; // Don't generate if not in outing view
              }
 
             const currentOuting = outings[activeOutingId];
             const playerNames = currentOuting.playerNames;
-            let numGroups = parseInt(numGroupsInput.value, 10); // Get from number input
 
-             // Validate numGroups from input
-             if (isNaN(numGroups) || numGroups < 1) {
-                 numGroups = 1;
-                 numGroupsInput.value = 1; // Correct input visually
-             }
-             // Max validation handled by input attributes, but double-check
-             numGroups = Math.min(numGroups, 10);
-             numGroupsInput.value = numGroups; // Ensure input reflects validated value
+            // Fetch full player objects
+            let players = playerNames.map(nameLower => allPlayers[nameLower]).filter(player => player);
 
+            if (players.length === 0) {
+                currentOuting.groups = [];
+                // Don't save here, let caller save if needed
+                return [];
+            }
 
-             // Fetch full player objects
-             let players = playerNames.map(nameLower => allPlayers[nameLower]).filter(player => player);
+            // Read the STORED desired number of groups from outing state
+            let desiredNumGroups = currentOuting.numberOfGroups;
+            const numPlayers = players.length;
 
-            if (players.length === 0) { currentOuting.groups = []; saveData(); return []; }
+            // Determine the ACTUAL number of groups to create for THIS generation
+            let actualNumGroups = desiredNumGroups;
 
-             // Adjust numGroups if needed (more groups than players)
-             if (numGroups > players.length) {
-                 // Don't show message on auto-update, only if manually triggered?
-                 if (useRandomness) showMessage(`Adjusting groups to match players (${players.length}).`, 'info');
-                 numGroups = players.length;
-                 numGroupsInput.value = numGroups; // Update input visually
-             }
-             currentOuting.numberOfGroups = numGroups; // Store the validated/adjusted number
+            // Adjust if desired groups > players, but ONLY for this calculation
+            if (actualNumGroups > numPlayers) {
+                actualNumGroups = numPlayers;
+                // DO NOT update currentOuting.numberOfGroups or numGroupsInput.value here
+                // Optionally show a temporary message if manually triggered?
+                // if (useRandomness) showMessage(`Temporarily generating ${actualNumGroups} groups (less than selected).`, 'info');
+            }
+
+            // Ensure at least one group if there are players
+            actualNumGroups = Math.max(1, actualNumGroups);
 
              // --- Randomization Step ---
              if (useRandomness) {
@@ -677,8 +675,8 @@
              // Sort by skill (desc) for balanced distribution (shuffling provides tie-breaking)
              const sortedPlayers = players.sort((a, b) => b.skill - a.skill);
 
-             // Initialize groups
-             const groups = Array.from({ length: numGroups }, (_, i) => ({
+             // Initialize groups using ACTUAL number for this generation
+             const groups = Array.from({ length: actualNumGroups }, (_, i) => ({ // Use actualNumGroups
                  id: i + 1,
                  name: GOLF_GROUP_NAMES[i % GOLF_GROUP_NAMES.length], // Assign fun name
                  players: [],
@@ -687,24 +685,27 @@
 
              // Distribute players greedily
              sortedPlayers.forEach(player => {
-                 groups.sort((a, b) => a.totalSkill - b.totalSkill); // Find group with lowest skill sum
+                 // Find group with lowest skill sum (among the actualNumGroups)
+                 groups.sort((a, b) => a.totalSkill - b.totalSkill);
                  groups[0].players.push(player);
                  groups[0].totalSkill += player.skill;
              });
 
+             // Store the generated groups in the outing state
              currentOuting.groups = groups;
-             saveData(); // Save the generated groups
-             return groups;
+             // DO NOT save numberOfGroups here unless the user explicitly changed it via the input
+             // Let the calling function handle saving the overall state if necessary
+             return groups; // Return generated groups
         }
 
+
         function displayGroups(groups) {
-            // Updated to use fun group names and total skill bar
+            // Updated to use fun group names and total skill bar (Same as V4)
             groupDisplayDiv.innerHTML = '';
 
             if (!groups || groups.length === 0) {
-                 // Same placeholder logic as V3
                  if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId] && outings[activeOutingId].playerNames.length > 0) {
-                     groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Groups will appear here after adding players.</p>';
+                     groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Groups will appear here.</p>'; // Slightly updated text
                  } else if (currentViewMode === 'outing') {
                       groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Add players to this outing first.</p>';
                  } else { /* Player mgmt view */ }
@@ -722,7 +723,6 @@
                 if (!playerListHTML) playerListHTML = '<li class="text-sm text-gray-400 italic">Empty</li>';
 
                 const infoDiv = document.createElement('div');
-                // Use fun group name
                 infoDiv.innerHTML = `
                     <h3 class="text-md font-semibold text-blue-700 mb-1">${group.name || `Group ${group.id}`}</h3>
                     <p class="text-sm text-gray-500 mb-2">Avg Skill: ${avgSkill} | Total: ${group.totalSkill}</p>
@@ -743,9 +743,15 @@
         }
 
         function generateAndDisplayGroups(useRandomness = false) {
-            const generatedGroups = generateGroups(useRandomness);
-            displayGroups(generatedGroups);
+            // Generates groups and updates the display, handles saving state
+             if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
+             // generateGroups now returns the groups but doesn't save the outing state itself
+             const generatedGroups = generateGroups(useRandomness);
+             // The groups are already stored in currentOuting.groups by generateGroups
+             saveData(); // Save the updated outing state (which includes the new groups)
+             displayGroups(generatedGroups); // Update the UI
         }
+
 
         // --- UI Update Trigger ---
         function updateOutingViewUI() {
@@ -754,15 +760,14 @@
              const currentOuting = outings[activeOutingId];
              updateOutingPlayerList();
              numGroupsInput.value = currentOuting.numberOfGroups;
-             // Update max for number input dynamically based on players
              numGroupsInput.max = Math.max(1, currentOuting.playerNames.length || 1);
              displayGroups(currentOuting.groups); // Display stored groups
         }
 
         // --- Utility Functions ---
-        function showMessage(message, type = 'info') { /* Same as V3 */ showMessageV3(message, type); }
+        function showMessage(message, type = 'info') { /* Same as V3/V4 */ showMessageV3(message, type); }
         function clearMessage() { messageArea.textContent = ''; messageArea.className = 'mt-6 text-center font-medium'; }
-        function showMessageV3(message, type = 'info'){ // Replicated V3
+        function showMessageV3(message, type = 'info'){ // Replicated V3/V4
              messageArea.textContent = message;
              messageArea.className = `mt-6 text-center font-medium ${ type === 'error' ? 'text-red-600' : type === 'success' ? 'text-green-600' : 'text-blue-600' }`;
              if (type !== 'error') { setTimeout(clearMessage, 3500); }
@@ -788,15 +793,19 @@
             numGroupsInput.addEventListener('change', () => { // Use 'change' for number input
                  if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId]) {
                      let groupsVal = parseInt(numGroupsInput.value, 10);
+                     const maxGroups = parseInt(numGroupsInput.max, 10) || 10; // Use max from attribute or default 10
                      // Re-validate on change
-                     groupsVal = Math.max(1, Math.min(groupsVal, parseInt(numGroupsInput.max, 10) || 10));
+                     groupsVal = Math.max(1, Math.min(groupsVal, maxGroups));
                      numGroupsInput.value = groupsVal; // Update input if corrected
+
+                     // Save the validated number to the outing state
                      outings[activeOutingId].numberOfGroups = groupsVal;
-                     // Auto-generate groups on change
+                     // Auto-generate groups on change (will also save state)
                      generateAndDisplayGroups(false); // No shuffle for auto-update
                  }
             });
-            recalculateBtn.addEventListener('click', () => generateAndDisplayGroups(true)); // Use randomness on button click
+            // Recalculate button uses randomness
+            recalculateBtn.addEventListener('click', () => generateAndDisplayGroups(true));
 
             // Player Management View: Add Player
             mgmtPlayerSkillSlider.addEventListener('input', () => { mgmtSkillValueSpan.textContent = mgmtPlayerSkillSlider.value; });
@@ -807,17 +816,14 @@
             cancelEditPlayerBtn.addEventListener('click', closeEditModal);
             saveEditPlayerBtn.addEventListener('click', handleSaveEditPlayer);
             editPlayerSkillSlider.addEventListener('input', () => { editSkillValueSpan.textContent = editPlayerSkillSlider.value; });
-             // Close modal if clicking outside the content
              editPlayerModal.addEventListener('click', (event) => {
-                 if (event.target === editPlayerModal) { // Check if click was on the overlay itself
-                     closeEditModal();
-                 }
+                 if (event.target === editPlayerModal) { closeEditModal(); }
              });
         }
 
-        // Make functions globally accessible for inline handlers (if any remain - best practice is to avoid)
+        // Make functions globally accessible if needed for inline handlers
         window.removePlayerFromOuting = removePlayerFromOuting;
-        window.openEditModal = openEditModal; // Called from renderPlayerManagementView
+        window.openEditModal = openEditModal;
         window.deletePlayerFromDatabase = deletePlayerFromDatabase;
         window.editOutingName = editOutingName;
 
