@@ -1,0 +1,19 @@
+name = "golf-group-generator"
+main = "src/index.js"
+compatibility_date = "2023-10-30" # Replace with a recent date
+
+# Add D1 binding
+[[d1_databases]]
+binding = "DB" # i.e. env.DB
+database_name = "golf-groups"
+database_id = "<YOUR_DATABASE_ID_HERE>" # Replace with your actual D1 database ID
+migrations_dir = "migrations" # Optional: if you have migration files for D1
+
+[vars]
+# Example environment variable
+# MY_VARIABLE = "example_value"
+
+# You might want to add settings for development server if you use `wrangler dev`
+# [dev]
+# port = 8787
+# local_protocol = "http"

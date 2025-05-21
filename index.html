@@ -225,11 +225,13 @@
         const messageArea = document.getElementById('message-area');
 
         // --- Application State ---
-        let allPlayers = {}; // Central DB: { "lowercase name": { name: "Proper Name", skill: 5 } }
-        let outings = {}; // { outingId: { name: "Outing Name", playerNames: ["lowercase name"], numberOfGroups: 3, groups: [] } }
-        let activeOutingId = null;
-        let currentViewMode = 'outing';
-        let nextOutingIndex = 1;
+        let allPlayers = {}; // Stores player objects, key is player ID (UUID)
+                             // Example: { "uuid-123": { id: "uuid-123", name: "John Doe", name_lower: "john doe", skill: 7 } }
+        let outings = {};    // Stores outing objects, key is outing ID (UUID)
+                             // Example: { "uuid-abc": { id: "uuid-abc", name: "Weekend Game", number_of_groups: 3, playerIds: ["uuid-123"], groups: [] } }
+        let activeOutingId = null; // Stores the ID of the currently viewed/managed outing
+        let currentViewMode = 'outing'; // or 'playerManagement'
+        // nextOutingIndex is removed.
 
         // --- Constants ---
         const PLAYER_MGMT_VIEW_ID = 'playerManagement';
@@ -239,533 +241,905 @@
             "Hole-in-Ones", "Pin Seekers", "The Caddies", "Divot Diggers", "Slice Squad"
         ];
 
+        // --- API Helper ---
+        async function fetchAPI(url, options = {}) {
+            const defaultHeaders = {
+                'Content-Type': 'application/json',
+            };
+            const config = {
+                ...options,
+                headers: {
+                    ...defaultHeaders,
+                    ...options.headers,
+                },
+            };
+
+            try {
+                const response = await fetch(url, config);
+                if (!response.ok) {
+                    // Try to parse error response as JSON, but fallback if it's not
+                    const errorData = await response.json().catch(() => ({ message: response.statusText, details: `Response status: ${response.status}` }));
+                    const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                    error.data = errorData; // Attach full error data if available
+                    error.status = response.status;
+                    throw error;
+                }
+                if (response.status === 204) { // No Content success status
+                    return null;
+                }
+                return response.json(); // Assuming all other successful responses are JSON
+            } catch (error) {
+                // Log the error and show a generic message to the user
+                console.error(`API Error (${error.status || 'Network Error'}): ${error.message} for URL ${url}`, error.data || error);
+                showMessage(`Error: ${error.message}. Check console for details.`, 'error');
+                throw error; // Re-throw to allow specific error handling by the caller if needed
+            }
+        }
+
+
         // --- Initialization ---
-        function initializeApp() {
-            loadData();
-            setupEventListeners();
-            renderTabs();
+        async function initializeApp() {
+            try {
+                showMessage('Loading initial data from API...', 'info');
+
+                // Fetch all players
+                const playersData = await fetchAPI('/api/players');
+                allPlayers = playersData.reduce((acc, player) => {
+                    acc[player.id] = player; // Player object includes id, name, name_lower, skill
+                    return acc;
+                }, {});
+
+                // Fetch all outings
+                const outingsData = await fetchAPI('/api/outings');
+                const outingDetailsPromises = outingsData.map(async (outingBasic) => {
+                    try {
+                        // For each outing, fetch its players and its groups
+                        const [outingPlayersData, outingGroupsData] = await Promise.all([
+                            fetchAPI(`/api/outings/${outingBasic.id}/players`),
+                            fetchAPI(`/api/outings/${outingBasic.id}/groups`) // This API returns { outingName, numberOfGroups, groups }
+                        ]);
+                        // Combine basic outing data with fetched players and groups
+                        return {
+                            ...outingBasic, // id, name, number_of_groups
+                            playerIds: outingPlayersData.map(p => p.id), // Store only player IDs
+                            groups: outingGroupsData.groups || [],       // Use the groups array from the response
+                        };
+                    } catch (e) {
+                         console.warn(`Failed to load full details for outing ${outingBasic.name} (${outingBasic.id}): ${e.message}. Displaying with limited info.`);
+                         // Return the basic outing info so it still appears in the list, but with empty players/groups
+                         return {
+                            ...outingBasic,
+                            playerIds: [],
+                            groups: [],
+                            errorLoadingDetails: true // Flag that details are missing
+                         };
+                    }
+                });
+
+                const outingsWithDetails = await Promise.all(outingDetailsPromises);
+                outings = outingsWithDetails.reduce((acc, outingWithDetails) => {
+                    acc[outingWithDetails.id] = outingWithDetails;
+                    return acc;
+                }, {});
+
+                clearMessage(); // Clear "Loading..." message
+            } catch (error) {
+                // If any of the initial fetches fail catastrophically (e.g., API down)
+                showMessage(`Failed to initialize application: ${error.message}. Some data may be missing or app may not function correctly. Please try refreshing.`, 'error');
+                // Application can still proceed with setupEventListeners and renderTabs,
+                // but views might be empty or show errors.
+            }
+
+            setupEventListeners(); // Setup event listeners once after initial data load attempt
+            renderTabs();          // Render available tabs
+
+            // Determine initial view
             if (Object.keys(outings).length > 0) {
-                const firstOutingId = Object.keys(outings).sort((a, b) => outings[a].name.localeCompare(outings[b].name))[0];
-                setActiveView(firstOutingId);
+                // Sort outings by name to ensure consistent "first" outing if multiple exist
+                const firstOutingId = Object.values(outings)
+                                      .sort((a, b) => a.name.localeCompare(b.name))[0]?.id;
+                if (firstOutingId) {
+                    setActiveView(firstOutingId);
+                } else { // Should ideally not happen if Object.keys(outings).length > 0
+                    setActiveView(PLAYER_MGMT_VIEW_ID);
+                }
             } else {
+                // If no outings, default to player management view
                 setActiveView(PLAYER_MGMT_VIEW_ID);
             }
         }
 
-        // --- Data Persistence ---
-        function saveData() {
-            localStorage.setItem('golfOrganizerDataV4', JSON.stringify({ allPlayers, outings, nextOutingIndex }));
-            console.log("Data saved:", { allPlayers, outings, nextOutingIndex });
-        }
-
-        function loadData() {
-            const savedData = localStorage.getItem('golfOrganizerDataV4');
-            if (savedData) {
-                const parsedData = JSON.parse(savedData);
-                allPlayers = parsedData.allPlayers || {};
-                outings = parsedData.outings || {};
-                nextOutingIndex = parsedData.nextOutingIndex || 1;
-                Object.values(outings).forEach(outing => {
-                    outing.playerNames = outing.playerNames || [];
-                    outing.numberOfGroups = outing.numberOfGroups || 3; // Default to 3
-                    outing.groups = outing.groups || [];
-                });
-                const correctedPlayers = {};
-                Object.values(allPlayers).forEach(player => {
-                    if (player && player.name) { correctedPlayers[player.name.toLowerCase()] = player; }
-                });
-                allPlayers = correctedPlayers;
-                console.log("Data loaded:", { allPlayers, outings, nextOutingIndex });
-            } else {
-                allPlayers = {}; outings = {}; nextOutingIndex = 1;
-                console.log("No saved data found, initializing empty state.");
-            }
-        }
+        // --- Data Persistence (REMOVED) ---
+        // function saveData() { ... }
+        // function loadData() { ... }
 
         // --- View Management ---
-        function setActiveView(id) {
+        function setActiveView(id) { // id can be an outingId or PLAYER_MGMT_VIEW_ID
             clearMessage();
-            playerSearchInput.value = '';
+            playerSearchInput.value = ''; // Reset search input
             hideSearchResults();
             hideAddNewPlayerSection();
-            closeEditModal(); // Ensure modal is closed on view change
+            closeEditModal(); // Ensure edit modal is closed on view change
 
             if (id === PLAYER_MGMT_VIEW_ID) {
                 currentViewMode = 'playerManagement';
-                activeOutingId = null;
+                activeOutingId = null; // Clear active outing when switching to player management
                 outingViewDiv.classList.add('hidden');
                 playerManagementViewDiv.classList.remove('hidden');
                 renderPlayerManagementView();
-            } else if (outings[id]) {
+            } else if (outings[id]) { // id is an outingId (UUID)
                 currentViewMode = 'outing';
                 activeOutingId = id;
                 outingViewDiv.classList.remove('hidden');
                 playerManagementViewDiv.classList.add('hidden');
-                updateOutingViewUI();
+                updateOutingViewUI(); // This will render the specific outing's details
             } else {
-                console.error("Invalid view/outing ID:", id);
-                setActiveView(PLAYER_MGMT_VIEW_ID); // Fallback
-                return;
+                // This case might happen if an outing was deleted and was the active one
+                console.warn("Invalid view/outing ID:", id, "Falling back to player management or first available outing.");
+                // Fallback to the first available outing, or player management if no outings exist
+                const availableOutingIds = Object.keys(outings);
+                if (availableOutingIds.length > 0) {
+                    // Sort by name to be consistent
+                    setActiveView(Object.values(outings).sort((a,b) => a.name.localeCompare(b.name))[0].id);
+                } else {
+                    setActiveView(PLAYER_MGMT_VIEW_ID);
+                }
+                return; // Exit to avoid issues with highlightActiveTab if id is invalid
             }
             highlightActiveTab(id);
         }
 
         // --- Tab Management ---
-        function highlightActiveTab(activeId) {
-            tabsContainer.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            managePlayersTabBtn.classList.remove('active');
+        function highlightActiveTab(activeId) { // activeId can be PLAYER_MGMT_VIEW_ID or an outingId
+            // Reset all tabs first
+            tabsContainer.querySelectorAll('.tab, .outing-tab').forEach(tab => {
+                tab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'border-green-500', 'text-green-600');
+                 // Reset general active styles if any were missed by specific color removals
+                tab.classList.remove('font-semibold');
+                if (!tab.id?.includes('tab-manage-players-btn')) { // Don't remove base text color from non-player tab
+                    tab.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                }
+            });
+             managePlayersTabBtn.classList.remove('active', 'border-green-500', 'text-green-600', 'font-semibold');
+             managePlayersTabBtn.classList.add('text-gray-500'); // Ensure it has its base styling
+
             if (activeId === PLAYER_MGMT_VIEW_ID) {
-                managePlayersTabBtn.classList.add('active');
-            } else {
-                const activeTabButton = tabsContainer.querySelector(`.tab[data-outing-id="${activeId}"]`);
-                if (activeTabButton) { activeTabButton.classList.add('active'); }
+                managePlayersTabBtn.classList.add('active', 'border-green-500', 'text-green-600', 'font-semibold');
+                managePlayersTabBtn.classList.remove('text-gray-500');
+            } else { // It's an outingId
+                const activeTabButton = tabsContainer.querySelector(`.outing-tab[data-outing-id="${activeId}"]`);
+                if (activeTabButton) {
+                    activeTabButton.classList.add('active', 'border-blue-500', 'text-blue-600', 'font-semibold');
+                    activeTabButton.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                }
             }
         }
 
+
         function renderTabs() {
-            // Same rendering logic as V3/V4, including edit/delete buttons
-            tabsContainer.querySelectorAll('.outing-tab').forEach(tab => tab.remove());
-            Object.keys(outings).sort((a, b) => outings[a].name.localeCompare(outings[b].name)).forEach(outingId => {
-                const outing = outings[outingId];
+            tabsContainer.querySelectorAll('.outing-tab').forEach(tab => tab.remove()); // Clear existing outing tabs
+            // Sort outings by name for display
+            Object.values(outings).sort((a, b) => a.name.localeCompare(b.name)).forEach(outing => {
+                // outing object now contains id, name, number_of_groups, playerIds, groups
                 const tabButton = document.createElement('button');
-                tabButton.className = 'tab outing-tab whitespace-nowrap py-3 px-3 border-b-2 border-transparent text-sm font-medium text-gray-500 rounded-t-md flex-shrink-0 flex items-center';
-                tabButton.dataset.outingId = outingId;
+                // Apply base classes, active state will be handled by highlightActiveTab
+                tabButton.className = 'outing-tab tab whitespace-nowrap py-3 px-3 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 rounded-t-md flex-shrink-0 flex items-center';
+                tabButton.dataset.outingId = outing.id; // Use outing.id (UUID)
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = outing.name;
                 tabButton.appendChild(nameSpan);
+
                 const editBtn = document.createElement('span');
                 editBtn.className = 'icon-btn edit-icon ml-2';
                 editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>`;
-                editBtn.onclick = (event) => { event.stopPropagation(); editOutingName(outingId); };
+                editBtn.title = `Edit ${outing.name}`;
+                editBtn.onclick = (event) => { event.stopPropagation(); editOutingDetails(outing.id); }; // Pass outing.id
                 tabButton.appendChild(editBtn);
+
                 const deleteBtn = document.createElement('span');
                 deleteBtn.className = 'icon-btn delete-icon';
                 deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>`;
-                deleteBtn.onclick = (event) => { event.stopPropagation(); if (confirm(`Delete outing "${outing.name}"?`)) { deleteOuting(outingId); } };
+                deleteBtn.title = `Delete ${outing.name}`;
+                deleteBtn.onclick = (event) => { event.stopPropagation(); if (confirm(`Delete outing "${outing.name}"? This cannot be undone.`)) { deleteOuting(outing.id); }}; // Pass outing.id
                 tabButton.appendChild(deleteBtn);
-                tabButton.addEventListener('click', () => setActiveView(outingId));
-                // Insert before the "Add" button
-                tabsContainer.insertBefore(tabButton, addOutingBtn);
+
+                tabButton.addEventListener('click', () => setActiveView(outing.id)); // Use outing.id
+                tabsContainer.insertBefore(tabButton, addOutingBtn); // Insert before the "+ Add Outing" button
             });
-            highlightActiveTab(currentViewMode === 'playerManagement' ? PLAYER_MGMT_VIEW_ID : activeOutingId);
+            // After rendering, re-apply active styles based on current view
+             highlightActiveTab(currentViewMode === 'playerManagement' ? PLAYER_MGMT_VIEW_ID : activeOutingId);
         }
 
 
-        function createNewOuting() {
-            // Same as V3/V4
-            const newOutingId = `outing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-            const newOutingName = `Outing ${nextOutingIndex++}`;
-            outings[newOutingId] = { name: newOutingName, playerNames: [], numberOfGroups: 3, groups: [] }; // Default groups = 3
-            saveData();
-            renderTabs();
-            setActiveView(newOutingId);
+        async function createNewOuting() {
+            const newOutingName = prompt("Enter name for the new outing:", `Outing ${Object.keys(outings).length + 1}`);
+            if (!newOutingName || newOutingName.trim() === "") {
+                showMessage("Outing name cannot be empty.", "info");
+                return;
+            }
+            const defaultNumberOfGroups = 3; // Or prompt for this too
+
+            try {
+                const newOuting = await fetchAPI('/api/outings', {
+                    method: 'POST',
+                    body: JSON.stringify({ name: newOutingName.trim(), numberOfGroups: defaultNumberOfGroups })
+                });
+                // API returns the created outing object { id, name, number_of_groups }
+                newOuting.playerIds = []; // Initialize playerIds for the new outing
+                newOuting.groups = [];    // Initialize groups for the new outing
+                outings[newOuting.id] = newOuting; // Add to local state using its new ID
+
+                renderTabs(); // Re-render tabs to include the new outing
+                setActiveView(newOuting.id); // Switch to the new outing's view
+                showMessage(`Outing "${newOuting.name}" created successfully.`, "success");
+            } catch (error) {
+                // Error message is already shown by fetchAPI helper
+                // console.error("Failed to create outing:", error); (already logged by fetchAPI)
+            }
         }
 
-        function editOutingName(outingId) {
-            // Same as V3/V4
-             if (!outings[outingId]) return;
-             const currentName = outings[outingId].name;
-             const newName = prompt(`Enter new name for outing "${currentName}":`, currentName);
-             if (newName && newName.trim() !== '' && newName.trim() !== currentName) {
-                 outings[outingId].name = newName.trim();
-                 saveData();
-                 renderTabs();
-             } else if (newName !== null) { showMessage("Outing name cannot be empty or unchanged.", "error"); }
+        async function editOutingDetails(outingId) { // Changed from editOutingName to editOutingDetails
+             const outing = outings[outingId];
+             if (!outing) {
+                 showMessage("Outing not found for editing.", "error");
+                 return;
+             }
+
+             const newName = prompt(`Enter new name for outing "${outing.name}" (current: ${outing.name}):`, outing.name);
+             const newNumGroupsStr = prompt(`Enter new number of groups for "${outing.name}" (current: ${outing.numberOfGroups}):`, outing.numberOfGroups);
+
+             const updatePayload = {};
+             let changed = false;
+
+             if (newName !== null && newName.trim() !== "" && newName.trim() !== outing.name) {
+                 updatePayload.name = newName.trim();
+                 changed = true;
+             }
+             if (newNumGroupsStr !== null && newNumGroupsStr.trim() !== "") {
+                 const numGroups = parseInt(newNumGroupsStr, 10);
+                 if (!isNaN(numGroups) && numGroups > 0 && numGroups !== outing.numberOfGroups) {
+                     updatePayload.numberOfGroups = numGroups;
+                     changed = true;
+                 } else if (isNaN(numGroups) || numGroups <=0) { // Added check for invalid number
+                     showMessage("Invalid number of groups. Must be a positive integer.", "error");
+                     return; // Don't proceed if number of groups is invalid
+                 }
+             }
+
+             if (changed) {
+                 try {
+                     const updatedOutingFromAPI = await fetchAPI(`/api/outings/${outingId}`, {
+                         method: 'PUT',
+                         body: JSON.stringify(updatePayload)
+                     });
+                     // API returns the full updated outing object { id, name, number_of_groups }
+                     // Update local state, preserving playerIds and groups which are not part of this update
+                     outings[outingId] = {
+                        ...outings[outingId], // keep existing playerIds, groups
+                        name: updatedOutingFromAPI.name,
+                        number_of_groups: updatedOutingFromAPI.number_of_groups
+                     };
+
+                     renderTabs(); // Re-render tabs in case name changed
+                     if (activeOutingId === outingId) { // If current view is this outing
+                         updateOutingViewUI(); // Re-render the main view for this outing
+                     }
+                     showMessage(`Outing "${outings[outingId].name}" updated successfully.`, "success");
+                 } catch (error) {
+                    // Error message handled by fetchAPI
+                    // console.error("Failed to update outing:", error); (already logged)
+                 }
+             } else {
+                 showMessage("No changes made to the outing.", "info");
+             }
          }
 
-        function deleteOuting(outingIdToDelete) {
-            // Same as V3/V4
-            if (!outings[outingIdToDelete]) return;
-            delete outings[outingIdToDelete];
-            if (activeOutingId === outingIdToDelete) {
-                const remainingOutingIds = Object.keys(outings);
-                if (remainingOutingIds.length > 0) {
-                    setActiveView(remainingOutingIds.sort((a, b) => outings[a].name.localeCompare(outings[b].name))[0]);
-                } else {
-                    setActiveView(PLAYER_MGMT_VIEW_ID);
-                }
+        async function deleteOuting(outingIdToDelete) {
+            if (!outings[outingIdToDelete]) {
+                 showMessage("Outing not found for deletion.", "error");
+                 return;
             }
-            saveData();
-            renderTabs();
+            try {
+                await fetchAPI(`/api/outings/${outingIdToDelete}`, { method: 'DELETE' }); // API call to delete
+                const deletedOutingName = outings[outingIdToDelete].name; // Get name for message before deleting from local
+                delete outings[outingIdToDelete]; // Remove from local state
+
+                if (activeOutingId === outingIdToDelete) { // If the deleted outing was active
+                    const remainingOutingIds = Object.keys(outings);
+                    if (remainingOutingIds.length > 0) {
+                        // setActiveView to the first available outing (sorted by name for consistency)
+                        setActiveView(Object.values(outings).sort((a,b) => a.name.localeCompare(b.name))[0].id);
+                    } else {
+                        setActiveView(PLAYER_MGMT_VIEW_ID); // If no outings left, go to player management
+                    }
+                }
+                renderTabs(); // Re-render tabs to remove the deleted one
+                showMessage(`Outing "${deletedOutingName}" deleted successfully.`, "success");
+            } catch (error) {
+                // Error message handled by fetchAPI
+                // console.error("Failed to delete outing:", error); (already logged)
+            }
         }
 
         // --- Player Search and Add (Outing View) ---
-        function handlePlayerSearch() { /* Same as V3/V4 */ handlePlayerSearchV3(); }
-        function selectPlayerFromSearch(playerName) { /* Same as V3/V4 */ selectPlayerFromSearchV3(playerName); }
-        function showSearchResults() { searchResultsDiv.classList.remove('hidden'); }
-        function hideSearchResults() { searchResultsDiv.classList.add('hidden'); searchResultsDiv.innerHTML = ''; }
-        function showAddNewPlayerSection(nameAttempt) { /* Same as V3/V4 */ showAddNewPlayerSectionV3(nameAttempt); }
-        function hideAddNewPlayerSection() { addNewPlayerSection.classList.add('hidden'); }
-        function addNewPlayerFromOutingView() { /* Same as V3/V4 */ addNewPlayerFromOutingViewV3(); }
-
-        // --- Replicated V3/V4 functions for brevity ---
-        function handlePlayerSearchV3() {
+        function handlePlayerSearch() {
             const searchTerm = playerSearchInput.value.trim().toLowerCase();
-            searchResultsDiv.innerHTML = ''; hideAddNewPlayerSection();
+            searchResultsDiv.innerHTML = ''; // Clear previous results
+            hideAddNewPlayerSection();
+
             if (!searchTerm) { hideSearchResults(); return; }
+
+            // Search from the local `allPlayers` cache (which is populated from API on init)
+            // Player objects in `allPlayers` include `id`, `name`, `name_lower`, `skill`
             const matchingPlayers = Object.values(allPlayers)
-                .filter(player => player.name.toLowerCase().includes(searchTerm))
-                .sort((a, b) => a.name.localeCompare(b.name));
+                .filter(player => player.name_lower.includes(searchTerm))
+                .sort((a, b) => a.name.localeCompare(b.name)); // Sort by proper name
+
             if (matchingPlayers.length > 0) {
                 matchingPlayers.forEach(player => {
-                    const item = document.createElement('div'); item.classList.add('search-result-item');
+                    const item = document.createElement('div');
+                    item.classList.add('search-result-item');
                     item.textContent = `${player.name} (Skill: ${player.skill})`;
-                    item.addEventListener('click', () => selectPlayerFromSearch(player.name));
+                    item.addEventListener('click', () => selectPlayerFromSearch(player.id)); // Pass player ID
                     searchResultsDiv.appendChild(item);
                 });
                 showSearchResults();
-            } else { showAddNewPlayerSection(playerSearchInput.value.trim()); hideSearchResults(); }
-        }
-        function selectPlayerFromSearchV3(playerName) {
-            addPlayerToCurrentOuting(playerName); playerSearchInput.value = '';
-            hideSearchResults(); hideAddNewPlayerSection(); playerSearchInput.focus();
-        }
-         function showAddNewPlayerSectionV3(nameAttempt) {
-             if (!nameAttempt) return; newPlayerNameDisplay.textContent = nameAttempt;
-             newPlayerSkillSlider.value = 5; newSkillValueSpan.textContent = '5';
-             addNewPlayerSection.classList.remove('hidden');
-        }
-        function addNewPlayerFromOutingViewV3() {
-            const newName = newPlayerNameDisplay.textContent;
-            const skill = parseInt(newPlayerSkillSlider.value, 10);
-            const success = addPlayerToDatabase(newName, skill);
-            if (success) {
-                addPlayerToCurrentOuting(newName); playerSearchInput.value = '';
-                hideAddNewPlayerSection(); playerSearchInput.focus();
+            } else {
+                // If no existing players match, show option to add new player
+                showAddNewPlayerSection(playerSearchInput.value.trim());
+                hideSearchResults();
             }
         }
-        // --- End Replicated V3/V4 functions ---
+
+        async function selectPlayerFromSearch(playerId) { // Accepts playerId (UUID)
+            // This function is called when a player is clicked from search results.
+            // It should add the selected player to the current outing.
+            await addPlayerToCurrentOuting(playerId); // Changed to accept ID and be async
+            playerSearchInput.value = ''; // Clear search input
+            hideSearchResults();
+            hideAddNewPlayerSection();
+            playerSearchInput.focus(); // Return focus to search input
+        }
+
+         function showAddNewPlayerSection(nameAttempt) { // nameAttempt is the string from search input
+             if (!nameAttempt) return;
+             newPlayerNameDisplay.textContent = nameAttempt; // Display the name they tried to search for
+             newPlayerSkillSlider.value = 5; // Default skill
+             newSkillValueSpan.textContent = '5';
+             addNewPlayerSection.classList.remove('hidden');
+        }
+
+        async function addNewPlayerFromOutingView() {
+            // This is called when "Add New Player to Database" is clicked from outing view
+            const newName = newPlayerNameDisplay.textContent; // Name is pre-filled from search attempt
+            const skill = parseInt(newPlayerSkillSlider.value, 10);
+
+            try {
+                // addPlayerToDatabase now handles API call and updates `allPlayers`
+                const newPlayer = await addPlayerToDatabase(newName, skill);
+                if (newPlayer) { // If player was successfully added to database
+                    await addPlayerToCurrentOuting(newPlayer.id); // Add the new player (by ID) to current outing
+                    playerSearchInput.value = ''; // Clear search input
+                    hideAddNewPlayerSection();
+                    playerSearchInput.focus();
+                }
+            } catch (error) {
+                // Error messages are handled by addPlayerToDatabase or addPlayerToCurrentOuting via fetchAPI
+                // console.error("Error adding new player from outing view:", error);
+            }
+        }
+
 
         // --- Outing Player Management ---
-         function addPlayerToCurrentOuting(playerName) {
-             // Adds player name, updates list, triggers auto group generation
+         async function addPlayerToCurrentOuting(playerId) { // Accepts playerId (UUID)
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) {
                  showMessage("Please select an active outing first.", "error"); return;
              }
              const currentOuting = outings[activeOutingId];
-             const playerNameLower = playerName.toLowerCase();
-             const playerExists = allPlayers[playerNameLower];
+             const player = allPlayers[playerId]; // Get player object from `allPlayers` using ID
 
-             if (!playerExists) { showMessage(`Player "${playerName}" not found.`, "error"); return; }
+             if (!player) { showMessage(`Player with ID "${playerId}" not found in local cache. Try refreshing.`, "error"); return; }
 
-             if (!currentOuting.playerNames.includes(playerNameLower)) {
-                 currentOuting.playerNames.push(playerNameLower);
-                 saveData(); // Save before UI updates
-                 updateOutingPlayerList();
-                 generateAndDisplayGroups(false); // Auto-generate (no shuffle)
-                 clearMessage();
-             } else { showMessage(`"${playerExists.name}" is already in this outing.`, 'info'); }
+             // Check if player is already in the outing (using playerIds array)
+             if (currentOuting.playerIds && !currentOuting.playerIds.includes(playerId)) {
+                 try {
+                     // API call to add player to outing
+                     await fetchAPI(`/api/outings/${activeOutingId}/players`, {
+                         method: 'POST',
+                         body: JSON.stringify({ playerId: playerId }) // API expects { "playerId": "uuid" }
+                     });
+                     currentOuting.playerIds.push(playerId); // Update local state
+
+                     // After adding a player, the groups might change, so re-fetch them.
+                     await refreshOutingGroups(activeOutingId);
+                     updateOutingPlayerList(); // Update the displayed list of players in the outing
+                     // updateOutingViewUI(); // This will also call displayGroups with the new groups.
+
+                     showMessage(`${player.name} added to ${currentOuting.name}.`, 'success');
+                 } catch (error) {
+                     // Error message handled by fetchAPI
+                     // console.error(`Failed to add player ${player.name} to outing:`, error);
+                 }
+             } else if (currentOuting.playerIds && currentOuting.playerIds.includes(playerId)) {
+                 showMessage(`"${player.name}" is already in this outing.`, 'info');
+             } else { // Should not happen if playerIds is initialized
+                 currentOuting.playerIds = [playerId]; // Initialize if it was undefined/null
+                 // proceed with API call as above... (this part is a bit redundant if playerIds is always an array)
+                 // For robustness, could combine with the above block or ensure playerIds is always array.
+                 console.warn("currentOuting.playerIds was not initialized properly. Initializing now.");
+                 // Repeat API call logic here or refactor to avoid repetition
+                  try {
+                     await fetchAPI(`/api/outings/${activeOutingId}/players`, {
+                         method: 'POST',
+                         body: JSON.stringify({ playerId: playerId })
+                     });
+                     await refreshOutingGroups(activeOutingId);
+                     updateOutingPlayerList();
+                     showMessage(`${player.name} added to ${currentOuting.name}.`, 'success');
+                 } catch (error) { /* Handled by fetchAPI */ }
+             }
          }
 
-        function removePlayerFromOuting(playerName) {
-            // Removes player name, updates list, triggers auto group generation
+        async function removePlayerFromOuting(playerId) { // Accepts playerId (UUID)
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
              const currentOuting = outings[activeOutingId];
-             const playerNameLower = playerName.toLowerCase();
-             currentOuting.playerNames = currentOuting.playerNames.filter(name => name !== playerNameLower);
-             saveData(); // Save before UI updates
-             updateOutingPlayerList();
-             generateAndDisplayGroups(false); // Auto-generate (no shuffle)
+             const player = allPlayers[playerId]; // Get player object for the name in message
+
+             if (!player) { showMessage("Player not found in local cache. Cannot remove.", "error"); return; }
+
+             if (confirm(`Remove ${player.name} from outing ${currentOuting.name}?`)) {
+                 try {
+                     // API call to remove player from outing
+                     await fetchAPI(`/api/outings/${activeOutingId}/players/${playerId}`, { method: 'DELETE' });
+                     // Update local state: remove player ID from playerIds array
+                     currentOuting.playerIds = currentOuting.playerIds.filter(id => id !== playerId);
+
+                     // After removing a player, groups will change, so re-fetch them.
+                     await refreshOutingGroups(activeOutingId);
+                     updateOutingPlayerList(); // Update UI list of players
+                     // updateOutingViewUI(); // This will also call displayGroups.
+
+                     showMessage(`${player.name} removed from ${currentOuting.name}.`, 'success');
+                 } catch (error) {
+                     // Error message handled by fetchAPI
+                     // console.error(`Failed to remove player ${player.name} from outing:`, error);
+                 }
+            }
         }
 
         function updateOutingPlayerList() {
-            // Renders players with inline skill bars (Same as V3/V4)
-            outingPlayerListDiv.innerHTML = '';
-             if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
+            outingPlayerListDiv.innerHTML = ''; // Clear existing list
+            if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
+
             const currentOuting = outings[activeOutingId];
-            if (currentOuting.playerNames.length === 0) {
-                outingPlayerListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players added.</p>'; return;
+            // Ensure playerIds array exists
+            const playerIdsToShow = currentOuting.playerIds || [];
+
+            if (playerIdsToShow.length === 0) {
+                outingPlayerListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players added to this outing yet.</p>';
+                return;
             }
-            const playersInOuting = currentOuting.playerNames
-                .map(nameLower => allPlayers[nameLower]).filter(player => player)
-                .sort((a, b) => a.name.localeCompare(b.name));
-            playersInOuting.forEach(player => {
+
+            // Map IDs to full player objects from `allPlayers` and sort them
+            const playersInOuting = playerIdsToShow
+                .map(playerId => allPlayers[playerId]) // Get player object from allPlayers using ID
+                .filter(player => player) // Filter out any undefined if an ID mismatch somehow occurs
+                .sort((a, b) => a.name.localeCompare(b.name)); // Sort by proper name for display
+
+            playersInOuting.forEach(player => { // player is now {id, name, name_lower, skill}
                 const playerElement = document.createElement('div');
                 playerElement.className = 'player-item flex justify-between items-center text-sm p-1.5 rounded';
+
                 const nameSkillContainer = document.createElement('div');
                 nameSkillContainer.className = 'flex items-center';
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = `${player.name} (Skill: ${player.skill})`;
                 nameSkillContainer.appendChild(nameSpan);
+
                 const barContainer = document.createElement('div');
                 barContainer.className = 'inline-skill-bar-container tooltip-container';
                 const bar = document.createElement('div'); bar.className = 'inline-skill-bar';
                 bar.style.width = `${(player.skill / 10) * 100}%`;
                 barContainer.appendChild(bar);
                 const tooltip = document.createElement('span'); tooltip.className = 'tooltiptext';
-                tooltip.textContent = `Skill: ${player.skill}/10`; barContainer.appendChild(tooltip);
-                nameSkillContainer.appendChild(barContainer); playerElement.appendChild(nameSkillContainer);
+                tooltip.textContent = `Skill: ${player.skill}/10`;
+                barContainer.appendChild(tooltip);
+                nameSkillContainer.appendChild(barContainer);
+                playerElement.appendChild(nameSkillContainer);
+
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'icon-btn delete-icon flex-shrink-0';
                 removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>`;
-                removeBtn.title = `Remove ${player.name}`; removeBtn.onclick = () => removePlayerFromOuting(player.name);
-                playerElement.appendChild(removeBtn); outingPlayerListDiv.appendChild(playerElement);
+                removeBtn.title = `Remove ${player.name}`;
+                removeBtn.onclick = () => removePlayerFromOuting(player.id); // Pass player.id
+                playerElement.appendChild(removeBtn);
+                outingPlayerListDiv.appendChild(playerElement);
             });
         }
 
         // --- Player Database Management ---
-        function addPlayerToDatabase(name, skill) {
-            // Central function - same logic as V3/V4
-            const trimmedName = name.trim(); const nameLower = trimmedName.toLowerCase();
-            if (!trimmedName) { showMessage("Player name empty.", "error"); return false; }
-            if (skill < 1 || skill > 10) { showMessage("Skill must be 1-10.", "error"); return false; }
-            if (allPlayers[nameLower]) { showMessage(`Player "${trimmedName}" exists. Edit in 'Manage Players'.`, "error"); return false; }
-            allPlayers[nameLower] = { name: trimmedName, skill: parseInt(skill, 10) };
-            saveData(); showMessage(`Player "${trimmedName}" added.`, "info");
-            if (currentViewMode === 'playerManagement') { renderPlayerManagementView(); }
-            mgmtPlayerNameInput.value = ''; mgmtPlayerSkillSlider.value = 5; mgmtSkillValueSpan.textContent = '5';
-            return true;
+        async function addPlayerToDatabase(name, skill) { // Removed calledFromOutingView param, not needed
+            const trimmedName = name.trim();
+            if (!trimmedName) { showMessage("Player name cannot be empty.", "error"); return null; } // Return null on failure
+            if (isNaN(skill) || skill < 1 || skill > 10) { // Ensure skill is a number
+                 showMessage("Skill must be a number between 1 and 10.", "error"); return null;
+            }
+
+            // Optional: Client-side check for existing name (API will be the source of truth for uniqueness)
+            const nameLower = trimmedName.toLowerCase();
+            if (Object.values(allPlayers).some(p => p.name_lower === nameLower)) {
+                showMessage(`Player with name "${trimmedName}" already exists (client-side check). API will confirm.`, "warning");
+                // Allow to proceed, API will handle conflict if it's truly a duplicate by its rules.
+            }
+
+            try {
+                const newPlayer = await fetchAPI('/api/players', {
+                    method: 'POST',
+                    body: JSON.stringify({ name: trimmedName, skill: parseInt(skill, 10) })
+                });
+                // API returns the created player object { id, name, name_lower, skill }
+                allPlayers[newPlayer.id] = newPlayer; // Add to local cache by ID
+
+                showMessage(`Player "${newPlayer.name}" added to database.`, "success");
+                if (currentViewMode === 'playerManagement') {
+                    renderPlayerManagementView(); // Refresh the list in player management view
+                    mgmtPlayerNameInput.value = ''; // Reset form
+                    mgmtPlayerSkillSlider.value = 5;
+                    mgmtSkillValueSpan.textContent = '5';
+                }
+                return newPlayer; // Return the created player object for immediate use (e.g., adding to outing)
+            } catch (error) {
+                // Error message is already handled by fetchAPI helper.
+                // console.error("Failed to add player to database:", error); (already logged)
+                return null; // Indicate failure
+            }
         }
 
         function renderPlayerManagementView() {
-            // Renders the list in the management tab (Same as V3/V4, but calls openEditModal)
-            allPlayersListDiv.innerHTML = ''; mgmtPlayerNameInput.value = '';
-            mgmtPlayerSkillSlider.value = 5; mgmtSkillValueSpan.textContent = '5';
-            const sortedPlayers = Object.values(allPlayers).sort((a, b) => a.name.localeCompare(b.name));
-            if (sortedPlayers.length === 0) { allPlayersListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players yet.</p>'; return; }
-            sortedPlayers.forEach(player => {
+            allPlayersListDiv.innerHTML = ''; // Clear existing list
+            // Reset add player form in this view
+            mgmtPlayerNameInput.value = '';
+            mgmtPlayerSkillSlider.value = 5;
+            mgmtSkillValueSpan.textContent = '5';
+
+            // Get players from local cache, sort by lowercase name for display
+            const sortedPlayers = Object.values(allPlayers).sort((a, b) => a.name_lower.localeCompare(b.name_lower));
+
+            if (sortedPlayers.length === 0) {
+                allPlayersListDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No players in the database yet. Add some!</p>';
+                return;
+            }
+            sortedPlayers.forEach(player => { // player is {id, name, name_lower, skill}
                 const itemDiv = document.createElement('div'); itemDiv.className = 'mgmt-player-item';
-                const infoSpan = document.createElement('span'); infoSpan.textContent = `${player.name} (Skill: ${player.skill})`; itemDiv.appendChild(infoSpan);
+                const infoSpan = document.createElement('span');
+                infoSpan.textContent = `${player.name} (Skill: ${player.skill})`;
+                itemDiv.appendChild(infoSpan);
+
                 const actionsDiv = document.createElement('div'); actionsDiv.className = 'flex items-center space-x-2 flex-shrink-0';
                 const editBtn = document.createElement('button'); editBtn.className = 'icon-btn edit-icon'; editBtn.title = `Edit ${player.name}`;
                 editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>`;
-                editBtn.onclick = () => openEditModal(player.name); // Open modal instead of prompt
+                editBtn.onclick = () => openEditModal(player.id); // Pass player ID to modal
                 actionsDiv.appendChild(editBtn);
+
                 const deleteBtn = document.createElement('button'); deleteBtn.className = 'icon-btn delete-icon'; deleteBtn.title = `Delete ${player.name}`;
                 deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>`;
-                deleteBtn.onclick = () => deletePlayerFromDatabase(player.name);
-                actionsDiv.appendChild(deleteBtn); itemDiv.appendChild(actionsDiv); allPlayersListDiv.appendChild(itemDiv);
+                deleteBtn.onclick = () => deletePlayerFromDatabase(player.id); // Pass player ID
+                actionsDiv.appendChild(deleteBtn);
+                itemDiv.appendChild(actionsDiv);
+                allPlayersListDiv.appendChild(itemDiv);
             });
         }
 
-        function handleAddPlayerFromMgmt() {
-            // Same as V3/V4
+        async function handleAddPlayerFromMgmt() {
             const name = mgmtPlayerNameInput.value;
             const skill = parseInt(mgmtPlayerSkillSlider.value, 10);
-            addPlayerToDatabase(name, skill);
+            // addPlayerToDatabase handles API call, local state update, success/error messages, and form reset.
+            await addPlayerToDatabase(name, skill);
         }
 
+
         // --- Edit Player Modal Logic ---
-        function openEditModal(playerName) {
-            const player = allPlayers[playerName.toLowerCase()];
-            if (!player) return;
-            editPlayerOriginalNameInput.value = player.name; // Store original case name
-            editPlayerNameInput.value = player.name;
-            editPlayerSkillSlider.value = player.skill;
-            editSkillValueSpan.textContent = player.skill;
-            editPlayerModal.classList.add('visible');
+        function openEditModal(playerId) { // Accepts playerId (UUID)
+            const player = allPlayers[playerId]; // Get player from local cache by ID
+            if (!player) {
+                showMessage("Player not found for editing. Try refreshing.", "error");
+                return;
+            }
+            // Store player ID in a hidden input to know which player to update on save
+            editPlayerOriginalNameInput.value = player.id; // Using this hidden input to store ID
+            editPlayerNameInput.value = player.name; // Populate form with current name
+            editPlayerSkillSlider.value = player.skill; // Populate form with current skill
+            editSkillValueSpan.textContent = player.skill; // Update skill display
+            editPlayerModal.classList.add('visible'); // Show the modal
         }
 
         function closeEditModal() {
             editPlayerModal.classList.remove('visible');
         }
 
-        function handleSaveEditPlayer() {
-            // Same logic as V4 - handles name change correctly
-            const originalName = editPlayerOriginalNameInput.value;
-            const originalNameLower = originalName.toLowerCase();
-            const newName = editPlayerNameInput.value.trim();
-            const newNameLower = newName.toLowerCase();
-            const newSkill = parseInt(editPlayerSkillSlider.value, 10);
+        async function handleSaveEditPlayer() {
+            const playerId = editPlayerOriginalNameInput.value; // This hidden input now stores the player's ID
+            const playerToUpdate = allPlayers[playerId];
 
-            if (!newName) { showMessage("Player name cannot be empty.", "error"); return; }
-            if (newSkill < 1 || newSkill > 10) { showMessage("Skill must be 1-10.", "error"); return; }
-
-            if (newNameLower !== originalNameLower && allPlayers[newNameLower]) {
-                showMessage(`Another player named "${newName}" already exists.`, "error"); return;
-            }
-
-            const playerToUpdate = allPlayers[originalNameLower];
-            if (!playerToUpdate) { showMessage("Original player not found!", "error"); return; }
-
-            playerToUpdate.skill = newSkill;
-
-            if (newNameLower !== originalNameLower) {
-                playerToUpdate.name = newName;
-                allPlayers[newNameLower] = playerToUpdate;
-                delete allPlayers[originalNameLower];
-                Object.values(outings).forEach(outing => {
-                    const index = outing.playerNames.indexOf(originalNameLower);
-                    if (index > -1) { outing.playerNames[index] = newNameLower; }
-                });
-                 showMessage(`Player "${originalName}" renamed to "${newName}" and skill updated.`, "info");
-            } else {
-                 showMessage(`Skill updated for ${newName}.`, "info");
-            }
-
-            saveData();
-            closeEditModal();
-            renderPlayerManagementView();
-
-            if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId].playerNames.includes(newNameLower)) {
-                 updateOutingViewUI();
-            } else if (currentViewMode === 'outing' && activeOutingId && newNameLower !== originalNameLower) {
-                 if (outings[activeOutingId].playerNames.includes(newNameLower)) {
-                     updateOutingViewUI();
-                 }
-            }
-        }
-
-
-        function deletePlayerFromDatabase(playerName) {
-            // Same logic as V3/V4
-            const playerNameLower = playerName.toLowerCase();
-            const player = allPlayers[playerNameLower];
-            if (!player) return;
-            if (confirm(`⚠️ DELETE "${player.name}" from database?\n\nRemoves player from ALL outings. Cannot be undone.`)) {
-                delete allPlayers[playerNameLower];
-                Object.keys(outings).forEach(outingId => {
-                    outings[outingId].playerNames = outings[outingId].playerNames.filter(name => name !== playerNameLower);
-                    // Also clear groups if player removed from active outing
-                    if (currentViewMode === 'outing' && activeOutingId === outingId) {
-                         outings[outingId].groups = []; // Clear groups as roster changed
-                         generateAndDisplayGroups(false); // Regenerate immediately
-                    }
-                });
-                saveData(); showMessage(`Player "${player.name}" deleted.`, "info");
-                if (currentViewMode === 'playerManagement') { renderPlayerManagementView(); }
-                else if (currentViewMode === 'outing' && activeOutingId) { updateOutingViewUI(); } // Refresh view if active
-            }
-        }
-
-        // --- Group Generation & Display ---
-        function generateGroups(useRandomness = false) {
-            // ** THIS FUNCTION IS CORRECTED **
-            clearMessage();
-             if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) {
-                 return []; // Don't generate if not in outing view
-             }
-
-            const currentOuting = outings[activeOutingId];
-            const playerNames = currentOuting.playerNames;
-
-            // Fetch full player objects
-            let players = playerNames.map(nameLower => allPlayers[nameLower]).filter(player => player);
-
-            if (players.length === 0) {
-                currentOuting.groups = [];
-                // Don't save here, let caller save if needed
-                return [];
-            }
-
-            // Read the STORED desired number of groups from outing state
-            let desiredNumGroups = currentOuting.numberOfGroups;
-            const numPlayers = players.length;
-
-            // Determine the ACTUAL number of groups to create for THIS generation
-            let actualNumGroups = desiredNumGroups;
-
-            // Adjust if desired groups > players, but ONLY for this calculation
-            if (actualNumGroups > numPlayers) {
-                actualNumGroups = numPlayers;
-                // DO NOT update currentOuting.numberOfGroups or numGroupsInput.value here
-                // Optionally show a temporary message if manually triggered?
-                // if (useRandomness) showMessage(`Temporarily generating ${actualNumGroups} groups (less than selected).`, 'info');
-            }
-
-            // Ensure at least one group if there are players
-            actualNumGroups = Math.max(1, actualNumGroups);
-
-             // --- Randomization Step ---
-             if (useRandomness) {
-                 // Shuffle the players array before sorting by skill
-                 players.sort(() => Math.random() - 0.5);
-             }
-
-             // Sort by skill (desc) for balanced distribution (shuffling provides tie-breaking)
-             const sortedPlayers = players.sort((a, b) => b.skill - a.skill);
-
-             // Initialize groups using ACTUAL number for this generation
-             const groups = Array.from({ length: actualNumGroups }, (_, i) => ({ // Use actualNumGroups
-                 id: i + 1,
-                 name: GOLF_GROUP_NAMES[i % GOLF_GROUP_NAMES.length], // Assign fun name
-                 players: [],
-                 totalSkill: 0
-             }));
-
-             // Distribute players greedily
-             sortedPlayers.forEach(player => {
-                 // Find group with lowest skill sum (among the actualNumGroups)
-                 groups.sort((a, b) => a.totalSkill - b.totalSkill);
-                 groups[0].players.push(player);
-                 groups[0].totalSkill += player.skill;
-             });
-
-             // Store the generated groups in the outing state
-             currentOuting.groups = groups;
-             // DO NOT save numberOfGroups here unless the user explicitly changed it via the input
-             // Let the calling function handle saving the overall state if necessary
-             return groups; // Return generated groups
-        }
-
-
-        function displayGroups(groups) {
-            // Updated to use fun group names and total skill bar (Same as V4)
-            groupDisplayDiv.innerHTML = '';
-
-            if (!groups || groups.length === 0) {
-                 if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId] && outings[activeOutingId].playerNames.length > 0) {
-                     groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Groups will appear here.</p>'; // Slightly updated text
-                 } else if (currentViewMode === 'outing') {
-                      groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Add players to this outing first.</p>';
-                 } else { /* Player mgmt view */ }
+            if (!playerToUpdate) {
+                showMessage("Original player not found for update! This is unexpected. Try refreshing.", "error");
+                closeEditModal();
                 return;
             }
 
-            let maxTotalSkill = 0; groups.forEach(group => { if (group.totalSkill > maxTotalSkill) maxTotalSkill = group.totalSkill; });
-            const scaleMax = Math.max(maxTotalSkill, 10); // Ensure scale isn't zero
+            const newName = editPlayerNameInput.value.trim();
+            const newSkill = parseInt(editPlayerSkillSlider.value, 10);
 
-            groups.sort((a, b) => a.id - b.id).forEach(group => {
+            if (!newName) { showMessage("Player name cannot be empty.", "error"); return; }
+            if (isNaN(newSkill) || newSkill < 1 || newSkill > 10) {
+                showMessage("Skill must be a number between 1 and 10.", "error"); return;
+            }
+
+            // Determine what actually changed
+            const updatePayload = {};
+            if (newName !== playerToUpdate.name) {
+                updatePayload.name = newName;
+            }
+            if (newSkill !== playerToUpdate.skill) {
+                updatePayload.skill = newSkill;
+            }
+
+            if (Object.keys(updatePayload).length === 0) {
+                showMessage("No changes detected.", "info");
+                closeEditModal();
+                return;
+            }
+
+            // Optimistic: Client-side check for name uniqueness if name changed
+            // API will be the final arbiter of uniqueness for name_lower.
+            if (updatePayload.name && Object.values(allPlayers).some(p => p.id !== playerId && p.name_lower === newName.toLowerCase())) {
+                showMessage(`Another player with name "${newName}" already exists (client-side check).`, 'error');
+                return; // Prevent API call if client-side check fails for user experience
+            }
+
+            try {
+                const updatedPlayerFromAPI = await fetchAPI(`/api/players/${playerId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updatePayload)
+                });
+                // API returns the full updated player object { id, name, name_lower, skill }
+                allPlayers[playerId] = updatedPlayerFromAPI; // Update local cache with response from API
+
+                showMessage(`Player "${updatedPlayerFromAPI.name}" updated successfully.`, "success");
+                closeEditModal();
+                renderPlayerManagementView(); // Refresh the list in player management view
+
+                // If the updated player is in the currently active outing, refresh that view too
+                if (currentViewMode === 'outing' && activeOutingId && outings[activeOutingId]?.playerIds.includes(playerId)) {
+                     updateOutingViewUI(); // This will re-render player list and potentially groups
+                }
+            } catch (error) {
+                // Error message already handled by fetchAPI.
+                // If it was a 409 conflict due to name_lower, the message from API is shown.
+                // console.error("Failed to save player edits:", error); (already logged)
+            }
+        }
+
+
+        async function deletePlayerFromDatabase(playerId) { // Accepts playerId (UUID)
+            const player = allPlayers[playerId]; // Get player from local cache
+            if (!player) {
+                showMessage("Player not found for deletion. Try refreshing.", "error");
+                return;
+            }
+
+            if (confirm(`⚠️ DELETE "${player.name}" from database?\n\nThis will remove the player from all outings as well (due to database CASCADE DELETE settings). This action cannot be undone.`)) {
+                try {
+                    await fetchAPI(`/api/players/${playerId}`, { method: 'DELETE' }); // API call to delete
+                    const deletedPlayerName = player.name; // Store name for message before deleting from local cache
+                    delete allPlayers[playerId]; // Remove from local cache
+
+                    // Update all outings in local state: remove this player ID from their playerIds arrays
+                    // and clear groups if the player was in an active outing, as groups will change.
+                    Object.values(outings).forEach(outing => {
+                        if (outing.playerIds) {
+                            const playerIndex = outing.playerIds.indexOf(playerId);
+                            if (playerIndex > -1) {
+                                outing.playerIds.splice(playerIndex, 1);
+                                // If this player was in the currently active outing, its groups are now invalid.
+                                // They will be re-fetched by updateOutingViewUI or refreshOutingGroups.
+                                if (outing.id === activeOutingId) {
+                                    outing.groups = []; // Clear local groups cache for this outing
+                                }
+                            }
+                        }
+                    });
+
+                    showMessage(`Player "${deletedPlayerName}" deleted successfully.`, "success");
+
+                    if (currentViewMode === 'playerManagement') {
+                        renderPlayerManagementView(); // Refresh player list
+                    } else if (currentViewMode === 'outing' && activeOutingId) {
+                        // If in an outing view, refresh it. The deleted player will be gone.
+                        // Groups will need to be re-fetched.
+                        await refreshOutingGroups(activeOutingId); // Explicitly re-fetch groups for the current outing
+                        updateOutingViewUI(); // Then update the whole UI for the outing
+                    }
+                } catch (error) {
+                    // Error message handled by fetchAPI
+                    // console.error("Failed to delete player:", error); (already logged)
+                }
+            }
+        }
+
+
+        // --- Group Generation & Display ---
+        // generateGroups function is removed. Group generation is now handled by the API.
+        // The client will call handleGenerateGroups which calls the API.
+
+        async function handleGenerateGroups(useShuffle = false) { // Renamed from generateAndDisplayGroups
+            clearMessage();
+            if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) {
+                showMessage("No active outing selected to generate groups for.", "error");
+                return;
+            }
+            const currentOuting = outings[activeOutingId];
+            if (!currentOuting.playerIds || currentOuting.playerIds.length === 0) {
+                showMessage("No players in this outing to generate groups.", "info");
+                currentOuting.groups = []; // Clear any existing groups
+                displayGroups(currentOuting.groups); // Update display to show empty
+                return;
+            }
+
+            const shuffleQueryParam = useShuffle ? '?shuffle=true' : '';
+            try {
+                // API endpoint /api/outings/:outingId/groups handles group generation
+                const groupDataFromAPI = await fetchAPI(`/api/outings/${activeOutingId}/groups${shuffleQueryParam}`);
+                // API returns { outingName, numberOfGroups (optional), groups: [...] }
+                // We primarily care about the 'groups' array.
+                currentOuting.groups = groupDataFromAPI.groups || []; // Update local outing object with new groups
+                // Optionally, update outing name or numberOfGroups if API can change them, though unlikely for this endpoint.
+                // currentOuting.name = groupDataFromAPI.outingName || currentOuting.name;
+                // currentOuting.numberOfGroups = groupDataFromAPI.numberOfGroups || currentOuting.numberOfGroups;
+
+                displayGroups(currentOuting.groups); // Update the UI with the new groups
+                showMessage("Groups generated successfully from API!", "success");
+            } catch (error) {
+                // Error message handled by fetchAPI
+                // console.error("Failed to generate groups from API:", error); (already logged)
+                currentOuting.groups = []; // Clear groups on error
+                displayGroups(currentOuting.groups); // Update display to show empty state
+            }
+        }
+
+        // Helper to specifically re-fetch groups for an outing, e.g., after player add/remove or num_groups change
+        async function refreshOutingGroups(outingIdToRefresh) {
+            if (!outings[outingIdToRefresh]) {
+                console.warn("Cannot refresh groups for non-existent outing ID:", outingIdToRefresh);
+                return;
+            }
+            try {
+                const groupData = await fetchAPI(`/api/outings/${outingIdToRefresh}/groups`); // Default no shuffle for refresh
+                outings[outingIdToRefresh].groups = groupData.groups || [];
+            } catch (error) {
+                console.warn(`Could not refresh groups for outing ${outingIdToRefresh}: ${error.message}`);
+                outings[outingIdToRefresh].groups = []; // Clear local groups on error to avoid stale data
+            }
+        }
+
+
+        function displayGroups(groupsToDisplay) { // Parameter renamed for clarity, accepts array of group objects
+            groupDisplayDiv.innerHTML = ''; // Clear previous group display
+
+            const currentOutingForDisplay = activeOutingId ? outings[activeOutingId] : null;
+
+            if (!groupsToDisplay || groupsToDisplay.length === 0) {
+                 if (currentOutingForDisplay && currentOutingForDisplay.playerIds && currentOutingForDisplay.playerIds.length > 0) {
+                     groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Groups have not been generated or are empty. Click "Recalculate Groups".</p>';
+                 } else if (currentOutingForDisplay) { // Has an active outing, but no players
+                      groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">Add players to this outing first, then generate groups.</p>';
+                 } else { // No active outing (e.g. player management view)
+                     // This part of UI is hidden in player management, but good to be safe.
+                     groupDisplayDiv.innerHTML = '<p class="text-gray-500 italic sm:col-span-2 lg:col-span-3">No outing selected or no groups to display.</p>';
+                 }
+                return;
+            }
+
+            // Determine max total skill for scaling bars, using the current groups to display
+            // This ensures bars are scaled relative to the current set of groups.
+            let maxTotalSkill = 0;
+            groupsToDisplay.forEach(group => {
+                if (group.totalSkill > maxTotalSkill) maxTotalSkill = group.totalSkill;
+            });
+            const scaleMax = Math.max(maxTotalSkill, 10); // Ensure scale isn't zero, min scale of 10 for very low skills
+
+            // Groups from API now have { name (fun name), players: [{id, name, skill}], totalSkill }
+            groupsToDisplay.sort((a, b) => a.name.localeCompare(b.name)).forEach(group => { // Sort groups by fun name
                 const groupCard = document.createElement('div');
                 groupCard.className = 'group-card bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col';
+
                 const avgSkill = group.players.length > 0 ? (group.totalSkill / group.players.length).toFixed(1) : 'N/A';
-                let playerListHTML = group.players.map(p => `<li class="text-sm text-gray-600">${p.name} (${p.skill})</li>`).join('');
-                if (!playerListHTML) playerListHTML = '<li class="text-sm text-gray-400 italic">Empty</li>';
+
+                // Players array within each group object from API: [{id, name, skill}]
+                let playerListHTML = group.players.map(p => `<li class="text-sm text-gray-600">${p.name} (Skill: ${p.skill})</li>`).join('');
+                if (!playerListHTML) playerListHTML = '<li class="text-sm text-gray-400 italic">Empty Group</li>';
 
                 const infoDiv = document.createElement('div');
                 infoDiv.innerHTML = `
-                    <h3 class="text-md font-semibold text-blue-700 mb-1">${group.name || `Group ${group.id}`}</h3>
+                    <h3 class="text-md font-semibold text-blue-700 mb-1">${group.name}</h3>
                     <p class="text-sm text-gray-500 mb-2">Avg Skill: ${avgSkill} | Total: ${group.totalSkill}</p>
                     <ul class="space-y-1 list-disc list-inside mb-3">${playerListHTML}</ul>`;
                 groupCard.appendChild(infoDiv);
 
-                const skillBarDiv = document.createElement('div'); skillBarDiv.className = 'mt-auto';
+                // Skill bar visualization
+                const skillBarDiv = document.createElement('div'); skillBarDiv.className = 'mt-auto'; // Push to bottom
                 const barContainer = document.createElement('div'); barContainer.className = 'group-skill-bar-container tooltip-container';
                 const bar = document.createElement('div'); bar.className = 'group-skill-bar';
                 const barWidth = scaleMax > 0 ? (group.totalSkill / scaleMax) * 100 : 0;
-                bar.style.width = `${Math.min(barWidth, 100)}%`;
+                bar.style.width = `${Math.min(barWidth, 100)}%`; // Cap at 100%
+                // bar.textContent = group.totalSkill; // Optionally display skill value on the bar
                 barContainer.appendChild(bar);
                 const tooltip = document.createElement('span'); tooltip.className = 'tooltiptext';
-                tooltip.textContent = `Total Skill: ${group.totalSkill}`; barContainer.appendChild(tooltip);
-                skillBarDiv.appendChild(barContainer); groupCard.appendChild(skillBarDiv);
+                tooltip.textContent = `Total Skill: ${group.totalSkill}`;
+                barContainer.appendChild(tooltip);
+                skillBarDiv.appendChild(barContainer);
+                groupCard.appendChild(skillBarDiv);
+
                 groupDisplayDiv.appendChild(groupCard);
             });
         }
 
-        function generateAndDisplayGroups(useRandomness = false) {
-            // Generates groups and updates the display, handles saving state
-             if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
-             // generateGroups now returns the groups but doesn't save the outing state itself
-             const generatedGroups = generateGroups(useRandomness);
-             // The groups are already stored in currentOuting.groups by generateGroups
-             saveData(); // Save the updated outing state (which includes the new groups)
-             displayGroups(generatedGroups); // Update the UI
-        }
-
 
         // --- UI Update Trigger ---
-        function updateOutingViewUI() {
-            // Updates outing view: player list, group input, groups display
+        async function updateOutingViewUI() { // Made async because it might call refreshOutingGroups
              if (currentViewMode !== 'outing' || !activeOutingId || !outings[activeOutingId]) return;
              const currentOuting = outings[activeOutingId];
-             updateOutingPlayerList();
+
+             updateOutingPlayerList(); // Renders player list based on currentOuting.playerIds and allPlayers
+
+             // Update Number of Groups input
              numGroupsInput.value = currentOuting.numberOfGroups;
-             numGroupsInput.max = Math.max(1, currentOuting.playerNames.length || 1);
-             displayGroups(currentOuting.groups); // Display stored groups
+             // Max groups should not exceed number of players, but can't be less than 1
+             const maxPlayerBasedGroups = currentOuting.playerIds ? currentOuting.playerIds.length : 1;
+             numGroupsInput.max = Math.max(1, maxPlayerBasedGroups); // Ensure max is at least 1
+
+             // If current numGroupsInput value exceeds new max (e.g. after removing players), adjust it.
+             if (parseInt(numGroupsInput.value) > parseInt(numGroupsInput.max)) {
+                numGroupsInput.value = numGroupsInput.max;
+                // If this adjustment changes the outing's number_of_groups, we should update the backend.
+                if (currentOuting.numberOfGroups !== parseInt(numGroupsInput.value)) {
+                    currentOuting.numberOfGroups = parseInt(numGroupsInput.value);
+                    try {
+                        await fetchAPI(`/api/outings/${activeOutingId}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({ numberOfGroups: currentOuting.numberOfGroups })
+                        });
+                        // After updating numberOfGroups, groups are likely invalid, so refresh them.
+                        await refreshOutingGroups(activeOutingId);
+                    } catch (error) {
+                        showMessage("Failed to update number of groups on the server. UI may be inconsistent.", "error");
+                        // Potentially revert local change or re-fetch all data if critical
+                    }
+                }
+             }
+             // Always display groups based on current local state (which should be fresh if changes occurred)
+             displayGroups(currentOuting.groups);
         }
 
         // --- Utility Functions ---
-        function showMessage(message, type = 'info') { /* Same as V3/V4 */ showMessageV3(message, type); }
+        function showMessage(message, type = 'info') { // type can be 'info', 'error', 'success', 'warning'
+             messageArea.textContent = message;
+             let colorClass = 'text-blue-600'; // Default for info
+             if (type === 'error') colorClass = 'text-red-600';
+             else if (type === 'success') colorClass = 'text-green-600';
+             else if (type === 'warning') colorClass = 'text-yellow-600'; // Added warning color
+
+             messageArea.className = `mt-6 text-center font-medium ${colorClass}`;
+             // For non-error messages, clear after a delay
+             if (type !== 'error') {
+                 setTimeout(() => {
+                    // Only clear if the message hasn't changed in the meantime
+                    if (messageArea.textContent === message) {
+                        clearMessage();
+                    }
+                 }, 3500);
+             }
+        }
         function clearMessage() { messageArea.textContent = ''; messageArea.className = 'mt-6 text-center font-medium'; }
         function showMessageV3(message, type = 'info'){ // Replicated V3/V4
              messageArea.textContent = message;
